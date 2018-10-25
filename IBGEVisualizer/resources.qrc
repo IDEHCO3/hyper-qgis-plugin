@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/plugins/IBGEVisualizer" >
+        <file>icon.png</file>
+        <file>flag.png</file>
+    </qresource>
+</RCC>
