@@ -32,6 +32,8 @@ from gui.VisualizerDock import VisualizerDockController
 
 from MemoryLayerSaver import MemoryLayerSaver
 
+import resources
+
 
 class IBGEVisualizer:
     """QGIS Plugin Implementation."""
