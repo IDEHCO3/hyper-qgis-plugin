@@ -1,0 +1,66 @@
+Index: .idea/inspectionProfiles/profiles_settings.xml
+===================================================================
+--- .idea/inspectionProfiles/profiles_settings.xml	(date 1539955248000)
++++ .idea/inspectionProfiles/profiles_settings.xml	(date 1539955248000)
+@@ -1,6 +0,0 @@
+-<component name="InspectionProjectProfileManager">
+-  <settings>
+-    <option name="PROJECT_PROFILE" value="Default" />
+-    <option name="USE_PROJECT_PROFILE" value="false" />
+-  </settings>
+-</component>
+\ No newline at end of file
+Index: .idea/inspectionProfiles/Project_Default.xml
+===================================================================
+--- .idea/inspectionProfiles/Project_Default.xml	(date 1539955248000)
++++ .idea/inspectionProfiles/Project_Default.xml	(date 1539955248000)
+@@ -1,5 +0,0 @@
+-<component name="InspectionProjectProfileManager">
+-  <profile version="1.0">
+-    <option name="myName" value="Project Default" />
+-  </profile>
+-</component>
+\ No newline at end of file
+Index: .idea/hyper-qgis-plugin.iml
+===================================================================
+--- .idea/hyper-qgis-plugin.iml	(date 1539955248000)
++++ .idea/hyper-qgis-plugin.iml	(date 1539955248000)
+@@ -1,11 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<module type="PYTHON_MODULE" version="4">
+-  <component name="NewModuleRootManager">
+-    <content url="file://$MODULE_DIR$" />
+-    <orderEntry type="inheritedJdk" />
+-    <orderEntry type="sourceFolder" forTests="false" />
+-  </component>
+-  <component name="TestRunnerService">
+-    <option name="PROJECT_TEST_RUNNER" value="Unittests" />
+-  </component>
+-</module>
+\ No newline at end of file
+Index: .idea/modules.xml
+===================================================================
+--- .idea/modules.xml	(date 1539955248000)
++++ .idea/modules.xml	(date 1539955248000)
+@@ -1,8 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ProjectModuleManager">
+-    <modules>
+-      <module fileurl="file://$PROJECT_DIR$/.idea/hyper-qgis-plugin.iml" filepath="$PROJECT_DIR$/.idea/hyper-qgis-plugin.iml" />
+-    </modules>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/vcs.xml
+===================================================================
+--- .idea/vcs.xml	(date 1539955248000)
++++ .idea/vcs.xml	(date 1539955248000)
+@@ -1,6 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="VcsDirectoryMappings">
+-    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+-  </component>
+-</project>
+\ No newline at end of file
