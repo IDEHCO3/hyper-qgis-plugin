@@ -45,7 +45,7 @@ class VisualizerDockController:
         self.timer.setInterval(7000)
         self.timer.timeout.connect(self.view.lb_status.hide)
 
-        self.view.bt_construct_clicked.connect(self._open_construct_url_dialog)
+        self.view.bt_construct.clicked.connect(self._open_construct_url_dialog)
 
         self.dialog_open_entry_point.layers_selected.connect(self._load_multiple_layers)
 
@@ -55,7 +55,7 @@ class VisualizerDockController:
         self.frame_join_attributes.show()
 
     def _open_construct_url_dialog(self):
-        pass
+        print('AQUI')
 
     def _open_entry_point_dialog(self, url=None):
         self.dialog_open_entry_point.set_layers_from_url(url)

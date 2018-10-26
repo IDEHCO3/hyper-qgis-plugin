@@ -35,7 +35,7 @@ class DialogOpenEntryPoint(QDialog, FORM_CLASS):
 
             data = json.loads(response.get('body'))
 
-            for k in data:
+            for k in sorted(data, key=data.__getitem__):
                 item = self.create_list_item(k, data.get(k))
 
                 self.list_layers.addItem(item)
