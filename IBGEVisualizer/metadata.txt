@@ -1,17 +1,18 @@
-﻿# This file contains metadata for your plugin. Since 
+# This file contains metadata for your plugin. Since 
 # version 2.0 of QGIS this is the proper way to supply 
 # information about a plugin. The old method of 
 # embedding metadata in __init__.py will 
 # is no longer supported since version 2.0.
 
-# This file should be included when you package your plugin.# Mandatory items:
+# This file should be included when you package your plugin.
+# Mandatory items:
 
 [general]
 name=IBGE Visualizer
 qgisMinimumVersion=2.14
 description=Acesso ao Visualizer do IBGE
 version=0.3.3
-author=IBGE-GGT
+author=IBGE
 email=andre.censitario@ibge.gov.br
 
 about=Plugin que promove visualização no QGIS dos serviços gerados no HyperResource
