@@ -1,4 +1,4 @@
-# This file contains metadata for your plugin. Since 
+﻿# This file contains metadata for your plugin. Since 
 # version 2.0 of QGIS this is the proper way to supply 
 # information about a plugin. The old method of 
 # embedding metadata in __init__.py will 
@@ -10,7 +10,7 @@
 name=IBGE Visualizer
 qgisMinimumVersion=2.14
 description=Acesso ao Visualizer do IBGE
-version=0.3.2
+version=0.3.3
 author=IBGE-GGT
 email=andre.censitario@ibge.gov.br
 

@@ -11,6 +11,7 @@ from IBGEVisualizer import Plugin, Utils, HyperResource
 
 from IBGEVisualizer.gui.FrameJoinAttributes import FrameJoinAttributes
 from IBGEVisualizer.gui.dialog_tree_test import DialogTreeTest
+from IBGEVisualizer.gui.dialog_open_entry_point import DialogOpenEntryPoint
 from IBGEVisualizer.gui.UrlCompleter import UrlCompleter
 
 
@@ -21,6 +22,7 @@ class VisualizerDockController:
         self.view = VisualizerDockView()
         self.tree_test = DialogTreeTest()
         self.frame_join_attributes = FrameJoinAttributes()
+        self.dialog_open_entry_point = DialogOpenEntryPoint()
 
         # connect to provide cleanup on closing of dockwidget
         self.view.closingPlugin.connect(self._on_close_plugin)
@@ -43,10 +45,21 @@ class VisualizerDockController:
         self.timer.setInterval(7000)
         self.timer.timeout.connect(self.view.lb_status.hide)
 
+        self.view.bt_construct_clicked.connect(self._open_construct_url_dialog)
+
+        self.dialog_open_entry_point.layers_selected.connect(self._load_multiple_layers)
+
     # bt_join_attributes button click action
     def _open_frame_join_attributes(self):
         #self.iface.showLayerProperties(self.iface.activeLayer())
         self.frame_join_attributes.show()
+
+    def _open_construct_url_dialog(self):
+        pass
+
+    def _open_entry_point_dialog(self, url=None):
+        self.dialog_open_entry_point.set_layers_from_url(url)
+        self.dialog_open_entry_point.show()
 
     def _on_close_plugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
@@ -58,37 +71,23 @@ class VisualizerDockController:
     def _load_url(self):
         url = self.view.tx_url.text()
 
-        if not url:
-            return
-
-        name_layer = self.get_layer_name_from_url(url)
-
-        self.set_ui_enabled(False)
-
         try:
-            reply = HyperResource.request_get(url)
-            options_reply = HyperResource.request_options(url)
+            self.set_ui_enabled(False)
 
-            self.timer.stop()
-            reply.requestStarted.connect(self.start_request)
-            reply.downloadProgress.connect(self.download_progress)
-            reply.error.connect(self.show_request_error)
-            reply.finished.connect(self.trigger_hide_status)
+            if not url:
+                return
 
-            response = reply.response()
-            options_response = options_reply.response()
+            head_reply = HyperResource.request_head(url)
+            head_response = head_reply.response()
 
-            obj = HyperResource.create_hyper_object(response, options_response, url)
+            if self.response_is_entry_point(head_response):
+                self._open_entry_point_dialog(url)
 
-            if not self.request_error:
-                #layer = Plugin.create_layer(name_layer, response)
-                layer = Plugin.create_layer_with_hyper_object(name_layer, obj)
+            else:
+                self._load_layer_from_url(url)
 
-                if layer:
-                    Utils.Layer.add(layer)
-                    self.view.tx_url.setText('')
         except:
-            self.view.tx_url.setText('')
+            #self.view.tx_url.setText('')
             raise
         finally:
             self.set_ui_enabled(True)
@@ -126,6 +125,7 @@ class VisualizerDockController:
         self.view.bt_load_url.setEnabled(enable)
         self.view.bt_join_attributes.setEnabled(enable)
         self.view.bt_tree_test.setEnabled(enable)
+        self.view.bt_construct.setEnabled(enable)
 
     def get_layer_name_from_url(self, url):
         spl = url.strip('/').split('/')
@@ -140,6 +140,49 @@ class VisualizerDockController:
 
             self.view.show()
 
+    def response_is_entry_point(self, response):
+        if 200 <= response.get('status_code') < 300:
+            link_tab = response.get('header').get('link')
+
+            if link_tab:
+                return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0
+
+        return False
+
+    def _load_layer_from_url(self, url):
+        name_layer = self.get_layer_name_from_url(url)
+
+        get_reply = HyperResource.request_get(url)
+        options_reply = HyperResource.request_options(url)
+
+        self.timer.stop()
+        get_reply.requestStarted.connect(self.start_request)
+        get_reply.downloadProgress.connect(self.download_progress)
+        get_reply.error.connect(self.show_request_error)
+        get_reply.finished.connect(self.trigger_hide_status)
+
+        response = get_reply.response()
+        options_response = options_reply.response()
+
+        obj = HyperResource.create_hyper_object(response, options_response, url)
+
+        if not self.request_error:
+            # layer = Plugin.create_layer(name_layer, response)
+            layer = Plugin.create_layer_with_hyper_object(name_layer, obj)
+
+            if layer:
+                Utils.Layer.add(layer)
+                self.view.tx_url.setText('')
+
+    def _load_multiple_layers(self, list_layer):
+        self.set_ui_enabled(False)
+
+        for item in list_layer:
+            self._load_layer_from_url(item.getLink())
+
+        self.set_ui_enabled(True)
+
+
 
 
 
@@ -151,6 +194,8 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class VisualizerDockView(QDockWidget, FORM_CLASS):
     request_sended = False
     closingPlugin = pyqtSignal()
+
+    bt_construct_clicked = pyqtSignal()
 
     def __init__(self, parent=None):
         """Constructor."""

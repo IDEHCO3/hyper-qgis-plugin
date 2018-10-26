@@ -100,6 +100,9 @@ def _get_fields(context):
     return output
 
 def _get_entry_point_from_link(link_tab):
+    if not link_tab:
+        return ''
+
     import re
     entry_point = re.search(r'^<.+?>', link_tab).group(0).strip('<>')
 

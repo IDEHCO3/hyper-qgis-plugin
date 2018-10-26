@@ -2,6 +2,7 @@
 changelog
 
 v0.3
+ - If a url of a entry point is loaded, a dialog is opened to see and load multiple layers at once
  - Fix several bugs
  - Added request feedback when downloading data
  - Removed urllib2 requests
