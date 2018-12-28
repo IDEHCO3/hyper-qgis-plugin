@@ -1,7 +1,6 @@
 
 # coding: utf-8
 
-import resources
 from PyQt4.QtGui import QTreeWidgetItem, QListWidgetItem, QBrush, QColor, QIcon, QMovie
 
 

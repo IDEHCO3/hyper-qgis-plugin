@@ -30,8 +30,8 @@ import resources
 
 # Import the code for the dock
 #from gui.VisualizerDock import VisualizerDockController
-from gui.v2.visualizer_dock import VisualizerDock as VisualizerDockController
 
+from IBGEVisualizer.gui.v2.visualizer_dock import VisualizerDock as VisualizerDockController
 from MemoryLayerSaver import MemoryLayerSaver
 
 

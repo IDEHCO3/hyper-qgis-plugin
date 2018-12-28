@@ -8,11 +8,11 @@ from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QDialog, QListWidgetItem, QPainter, QPixmap
 
 from IBGEVisualizer import HyperResource, Utils
-from IBGEVisualizer.gui import ComponentFactory
 from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilterExpression
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
 from IBGEVisualizer.gui.v2.components.frame_geometry import FrameGeometry
+from IBGEVisualizer.gui import ComponentFactory
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'dialog_construct_url.ui'))

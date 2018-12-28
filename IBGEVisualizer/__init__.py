@@ -30,6 +30,7 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgisInterface
     """
-    #
-    from .IBGEVisualizer import IBGEVisualizer
-    return IBGEVisualizer(iface)
+
+    from ibge_visualizer import IBGEVisualizer as ibge
+
+    return ibge(iface)
