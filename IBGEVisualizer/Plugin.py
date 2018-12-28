@@ -43,20 +43,28 @@ class GeoJsonFeature:
         if self.fields is not None:
             for field_name in self.keys:
                 type_ = self.fields.get(field_name)
-                field_type = _convert_to_QVariant(type_)
-                result.append(QgsField(field_name, field_type))
+
+                if type_:
+                    field_type = _convert_to_QVariant(type_.get('@type'))
+                    result.append(QgsField(field_name, field_type))
+                else:
+                    Utils.MessageBox.critical(u"Arquivo de contexto não é compatível com os dados deste recurso", u'')
+                    #raise ValueError(u"Arquivo de contexto não é compatível com os dados deste recurso")
+                    return
 
         else:
-            for field in self.keys:
-                result.append(QgsField(field, QVariant.String))
+            for field_name in self.keys:
+                result.append(QgsField(field_name, QVariant.String))
 
         return result
 
     def to_qgs_feature(self):
-        f = QgsFeature(self.get_qgs_fields())
+        qgs_fields = self.get_qgs_fields()
+        f = QgsFeature()
 
-        f.setAttributes([self.id] + self.properties)
-        f.setGeometry(self.get_qgs_geometry())
+        if qgs_fields:
+            f.setAttributes([self.id] + self.properties)
+            f.setGeometry(self.get_qgs_geometry())
 
         return f
 
@@ -143,7 +151,7 @@ class SimpleJSON(object):
 
         if self.fields is not None:
             for field_name in self.keys:
-                type_ = self.fields.get(field_name)
+                type_ = self.fields[field_name].get('@type')
                 qvariant_type = _convert_to_QVariant(type_)
 
                 result.append(QgsField(field_name, qvariant_type))

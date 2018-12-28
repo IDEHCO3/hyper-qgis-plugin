@@ -1,4 +1,6 @@
 
+# coding: utf-8
+
 import os, json
 
 from PyQt4 import uic
@@ -73,5 +75,5 @@ class ListItem(QListWidgetItem):
     def setLink(self, link):
         self.link = link
 
-    def getLink(self):
+    def link(self):
         return self.link

@@ -26,13 +26,13 @@ from PyQt4.QtGui import QAction, QIcon
 import os.path
 
 # Initialize Qt resources from file resources.py
+import resources
 
 # Import the code for the dock
-from gui.VisualizerDock import VisualizerDockController
+#from gui.VisualizerDock import VisualizerDockController
+from gui.v2.visualizer_dock import VisualizerDock as VisualizerDockController
 
 from MemoryLayerSaver import MemoryLayerSaver
-
-import resources
 
 
 class IBGEVisualizer:
@@ -200,4 +200,3 @@ class IBGEVisualizer:
             self.dock_controller = VisualizerDockController(self.iface)
 
         self.dock_controller.run()
-        self.dock_controller.view.show()

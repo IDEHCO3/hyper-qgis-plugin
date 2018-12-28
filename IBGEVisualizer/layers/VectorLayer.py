@@ -27,5 +27,7 @@ class VectorLayer(QgsVectorLayer):
         return super(VectorLayer, self).fields().toList()
 
     def add_fields(self, qgs_field_list):
+        if not qgs_field_list: return
+
         for field in qgs_field_list:
             self.addAttribute(field)

@@ -1,11 +1,15 @@
 
 changelog
 
+v0.4
+- Added window to construct urls, early work
+- Changed dock interface to show tree of resources
+
 v0.3
- - If a url of a entry point is loaded, a dialog is opened to see and load multiple layers at once
- - Fix several bugs
- - Added request feedback when downloading data
- - Removed urllib2 requests
+- If a url of a entry point is loaded, a dialog is opened to see and load multiple layers at once
+- Fix several bugs
+- Added request feedback when downloading data
+- Removed urllib2 requests
 
 v0.2
 - Classes reorganized to better understaind a maintenance;

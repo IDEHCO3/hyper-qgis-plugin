@@ -1,5 +1,5 @@
 
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 import os
 
@@ -10,6 +10,7 @@ from PyQt4.QtGui import QApplication, QDockWidget
 from IBGEVisualizer import Plugin, Utils, HyperResource
 
 from IBGEVisualizer.gui.FrameJoinAttributes import FrameJoinAttributes
+from IBGEVisualizer.gui.dialog_construct_url_2 import DialogConstructUrl2
 from IBGEVisualizer.gui.dialog_tree_test import DialogTreeTest
 from IBGEVisualizer.gui.dialog_open_entry_point import DialogOpenEntryPoint
 from IBGEVisualizer.gui.UrlCompleter import UrlCompleter
@@ -23,6 +24,8 @@ class VisualizerDockController:
         self.tree_test = DialogTreeTest()
         self.frame_join_attributes = FrameJoinAttributes()
         self.dialog_open_entry_point = DialogOpenEntryPoint()
+        #self.dialog_construct_url = DialogConstructUrl()
+        self.dialog_construct_url_2 = DialogConstructUrl2()
 
         # connect to provide cleanup on closing of dockwidget
         self.view.closingPlugin.connect(self._on_close_plugin)
@@ -49,13 +52,19 @@ class VisualizerDockController:
 
         self.dialog_open_entry_point.layers_selected.connect(self._load_multiple_layers)
 
+        self.dialog_construct_url_2.load_url_command.connect(self._load_layer_from_url)
+
     # bt_join_attributes button click action
     def _open_frame_join_attributes(self):
         #self.iface.showLayerProperties(self.iface.activeLayer())
         self.frame_join_attributes.show()
 
     def _open_construct_url_dialog(self):
-        print('AQUI')
+        if self.dialog_construct_url_2.isVisible():
+            self.dialog_construct_url_2.raise_()
+            self.dialog_construct_url_2.activateWindow()
+
+        self.dialog_construct_url_2.show()
 
     def _open_entry_point_dialog(self, url=None):
         self.dialog_open_entry_point.set_layers_from_url(url)
@@ -103,6 +112,7 @@ class VisualizerDockController:
 
     def start_request(self):
         self.request_error = False
+        self.timer.stop()
         self.view.lb_status.show()
         self.view.lb_status.setText(u'Enviando requisição e aguardando resposta...')
 
@@ -155,7 +165,6 @@ class VisualizerDockController:
         get_reply = HyperResource.request_get(url)
         options_reply = HyperResource.request_options(url)
 
-        self.timer.stop()
         get_reply.requestStarted.connect(self.start_request)
         get_reply.downloadProgress.connect(self.download_progress)
         get_reply.error.connect(self.show_request_error)
@@ -178,7 +187,7 @@ class VisualizerDockController:
         self.set_ui_enabled(False)
 
         for item in list_layer:
-            self._load_layer_from_url(item.getLink())
+            self._load_layer_from_url(item.url())
 
         self.set_ui_enabled(True)
 

@@ -1,29 +1,43 @@
 
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 import request
+import copy, os
+
+import Utils
 
 
 def request_get(url):
+    Utils.Logging.info(u'URL consultada: {}. Method: GET'.format(url), u'IBGEVisualizer')
     return request.get(url)
 
     
 def request_options(url):
+    Utils.Logging.info(u'URL consultada: {}. Method: OPTIONS'.format(url), u'IBGEVisualizer')
     return request.options(url)
     
     
 def request_head(url):
+    Utils.Logging.info(u'URL consultada: {}. Method: HEAD'.format(url), u'IBGEVisualizer')
     return request.head(url)
 
 
 def url_exists(url):
     reply = request_head(url)
     response = reply.response()
+    return 200 <= response.get('status_code') < 300, response
 
-    return 200 <= response.get('status_code') < 300
+def is_entry_point(response):
+    if 200 <= response.get('status_code') < 300:
+        link_tab = response.get('header').get('link')
+
+        if link_tab:
+            return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0
+
+    return False
 
 
-import json, copy, os
+
 
 def translate_get(response):
     return response
@@ -86,16 +100,18 @@ def _get_fields(context):
     output = {}
 
     switch = {
-        "http://schema.org/Integer": int,
-        "http://schema.org/Text": unicode,
-        "http://schema.org/Float": float,
-        "http://schema.org/Boolean": bool
+        u"http://schema.org/Integer": int,
+        u"http://schema.org/Text": unicode,
+        u"http://schema.org/Float": float,
+        u"http://schema.org/Boolean": bool,
+        u"http://geojson.org/geojson-ld/vocab.html#geometry": u'geometria'
     }
 
     for k, v in context.items():
-        output.update({
-            k: switch.get(v['@type']) or unicode
-        })
+        if isinstance(v, dict):
+            output.update({k: v})
+            field = output[k]
+            field.update({'@type': switch.get(v.get('@type')) or unicode})
 
     return output
 
@@ -207,7 +223,6 @@ class OperationContext:
         context_path = os.path.join(os.path.dirname(__file__), 'gui/operations_template.html')
         context_html = open(context_path).read()
 
-        # Tentando interpretar link do contexto
         context_definition = '---'
         context_params = '---'
         context_return = '---'
@@ -231,3 +246,112 @@ class OperationContext:
             returns=context_return,
             example=context_example,
         )
+
+
+import re
+
+CONTEXT_VOCAB = 'http://www.w3.org/ns/json-ld#context'
+ENTRY_POINT_VOCAB = 'http://schema.org/EntryPoint'
+
+class Hyper_Object:
+    def __init__(self, url):
+        self.resource_url = url
+
+        self.header = HeaderReader(url)
+
+    def is_entry_point(self):
+        return self.header.entry_point is not None
+
+
+class HeaderReader:
+    def __init__(self, url):
+        # Request HEAD
+        reply = request_head(url)
+        response = reply.response()
+
+        self.header = response.get('header')
+
+        self.header.update(link=self.parse_link_header(self.header.get('link')))
+        self.header.update(allow=self.parse_list(self.header.get('allow')))
+        self.header.update(date=self.parse_date(self.header.get('date')))
+        self.header.update({"access-control-allow-headers": self.parse_list(self.header.get('access-control-allow-headers'))})
+        self.header.update({"access-control-allow-origin": self.parse_list(self.header.get('access-control-allow-origin'))})
+        self.header.update({"access-control-allow-methods": self.parse_list(self.header.get('access-control-allow-methods'))})
+        self.header.update({"access-control-expose-headers": self.parse_list(self.header.get('access-control-expose-headers'))})
+
+        link = self.header.get('link')
+
+        self.stylesheet = link.get('stylesheet')
+        self.metadata = link.get('metadata')
+
+        c = link.get(CONTEXT_VOCAB) or None
+
+        self.context_iri = c['target'] if c and c['type'] == 'application/ld+json' else None
+        self.entry_point = link.get(ENTRY_POINT_VOCAB) or None
+
+        print(self.header)
+
+    def field(self, name):
+        return self.header.get(name)
+
+    def parse_list(self, field):
+        return field.split(',')
+
+    def parse_date(self, date):
+        from datetime import datetime
+        return datetime.strptime(date, '%a, %d %b %Y %H:%M:%S GMT')
+
+    def parse_link_header(self, header):
+        """
+        Parses a link header. The results will be key'd by the value of "rel".
+
+        Link: <http://json-ld.org/contexts/person.jsonld>; \
+          rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"
+
+        Parses as: {
+          'http://www.w3.org/ns/json-ld#context': {
+            target: http://json-ld.org/contexts/person.jsonld,
+            type: 'application/ld+json'
+          }
+        }
+
+        If there is more than one "rel" with the same IRI, then entries in the
+        resulting map for that "rel" will be lists.
+
+        :param header: the link header to parse.
+
+        :return: the parsed result.
+        """
+        rval = {}
+        # split on unbracketed/unquoted commas
+        entries = re.findall(r'(?:<[^>]*?>|"[^"]*?"|[^,])+', header)
+        if not entries:
+            return rval
+
+        for entry in entries:
+            match = re.search(r'\s*<([^>]*?)>\s*(?:;\s*(.*))?', entry)
+
+            if not match:
+                continue
+
+            match = match.groups()
+            result = {'target': match[0]}
+            params = match[1]
+            matches = re.findall(r'(.*?)=(?:(?:"([^"]*?)")|([^"]*?))\s*(?:(?:;\s*)|$)', params)
+
+            for match in matches:
+                result[match[0]] = match[2] if match[1] is None else match[1]
+
+            rel = result.get('rel', '')
+            if isinstance(rval.get(rel), list):
+                rval[rel].append(result)
+            elif rel in rval:
+                rval[rel] = [rval[rel], result]
+            else:
+                rval[rel] = result
+
+        return rval
+
+
+class ContextReader:
+    pass
