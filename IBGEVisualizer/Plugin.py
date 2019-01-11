@@ -85,7 +85,8 @@ class FeatureCollection:
         self.geom_type = switch.get(self.features[0].geom_type) or 'polygon'
 
     def get_qgs_fields(self):
-        if self.features is not None and len(self.features) > 0:
+        has_features = self.features and len(self.features) > 0
+        if has_features:
             return self.features[0].get_qgs_fields()
 
         return []

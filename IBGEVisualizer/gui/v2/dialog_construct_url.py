@@ -12,6 +12,7 @@ from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilter
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
 from IBGEVisualizer.gui.v2.components.frame_geometry import FrameGeometry
+from IBGEVisualizer.gui.v2.components.frame_empty_expects import FrameEmptyExpects
 from IBGEVisualizer.gui import ComponentFactory
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -48,7 +49,7 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
         if item.type_ == 'supported_operation':
             if len(item.property.expects) < 1:
-                return
+                self._load_empty_expects_frame(item)
 
             if 'http://extension.schema.org/expression' in item.property.expects:
                 self._load_filter_expression_frame()
@@ -86,6 +87,14 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         widget = FrameGeometry()
         self._insert_in_operations_layout(widget)
         widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
+
+    def _load_empty_expects_frame(self, item):
+        url_base = self.url_builder.url()
+        url_base = url_base + ('/' if not url_base.endswith('/') else '')
+        url = url_base + item.text()
+
+        widget = FrameEmptyExpects(url)
+        self._insert_in_operations_layout(widget)
 
     def _insert_in_operations_layout(self, widget):
         if not widget: return

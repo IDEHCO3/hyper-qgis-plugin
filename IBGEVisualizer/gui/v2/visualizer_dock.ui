@@ -21,47 +21,6 @@
     <property name="spacing">
      <number>3</number>
     </property>
-    <item row="4" column="0">
-     <spacer name="verticalSpacer">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Minimum</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>0</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="2" column="0">
-     <widget class="QTreeWidget" name="list_resource">
-      <property name="styleSheet">
-       <string notr="true">font: 10pt &quot;Segoe UI&quot;;</string>
-      </property>
-      <property name="indentation">
-       <number>15</number>
-      </property>
-      <attribute name="headerVisible">
-       <bool>false</bool>
-      </attribute>
-      <column>
-       <property name="text">
-        <string notr="true">1</string>
-       </property>
-      </column>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLineEdit" name="tx_quick_resource">
-      <property name="placeholderText">
-       <string>Adição rápida de recurso</string>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="title">
@@ -92,9 +51,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_2">
+        <widget class="QPushButton" name="bt_remove_resource">
          <property name="text">
-          <string>PushButton</string>
+          <string/>
+         </property>
+         <property name="icon">
+          <iconset resource="../../resources.qrc">
+           <normaloff>:/plugins/IBGEVisualizer/minus.png</normaloff>:/plugins/IBGEVisualizer/minus.png</iconset>
+         </property>
+         <property name="flat">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -115,6 +81,40 @@
      </widget>
     </item>
     <item row="3" column="0">
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Minimum</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>0</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="1" column="0">
+     <widget class="QTreeWidget" name="list_resource">
+      <property name="styleSheet">
+       <string notr="true">font: 10pt &quot;Segoe UI&quot;;</string>
+      </property>
+      <property name="indentation">
+       <number>15</number>
+      </property>
+      <attribute name="headerVisible">
+       <bool>false</bool>
+      </attribute>
+      <column>
+       <property name="text">
+        <string notr="true">1</string>
+       </property>
+      </column>
+     </widget>
+    </item>
+    <item row="2" column="0">
      <widget class="QLabel" name="lb_status">
       <property name="font">
        <font>
@@ -137,6 +137,8 @@ padding: 2px 0;</string>
    </layout>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

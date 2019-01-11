@@ -1,22 +1,30 @@
 
 # coding: utf-8
 
-import request
-import copy, os
+import copy
+import os
 
 import Utils
+import request
 
+
+def GET(url):
+    return request_get(url)
+
+def HEAD(url):
+    return request_head(url)
+
+def OPTIONS(url):
+    return request_options(url)
 
 def request_get(url):
     Utils.Logging.info(u'URL consultada: {}. Method: GET'.format(url), u'IBGEVisualizer')
     return request.get(url)
 
-    
 def request_options(url):
     Utils.Logging.info(u'URL consultada: {}. Method: OPTIONS'.format(url), u'IBGEVisualizer')
     return request.options(url)
-    
-    
+
 def request_head(url):
     Utils.Logging.info(u'URL consultada: {}. Method: HEAD'.format(url), u'IBGEVisualizer')
     return request.head(url)
@@ -29,7 +37,7 @@ def url_exists(url):
 
 def is_entry_point(response):
     if 200 <= response.get('status_code') < 300:
-        link_tab = response.get('header').get('link')
+        link_tab = response.get('headers').get('link')
 
         if link_tab:
             return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0
@@ -37,16 +45,14 @@ def is_entry_point(response):
     return False
 
 
-
-
 def translate_get(response):
     return response
 
 def translate_options(response, url=''):
     body = response.get('body')
-    header = response.get('header')
+    headers = response.get('headers')
 
-    link_tab = header.get('link') or ''
+    link_tab = headers.get('link') or ''
 
     entry_point = _get_entry_point_from_link(link_tab)
 
@@ -135,7 +141,7 @@ class HyperObject(object):
         self.get_obj = get_obj
         self.options_obj = options_obj
 
-        self.request_header = get_obj.get('header')
+        self.request_header = get_obj.get('headers')
         self.resource = get_obj.get('body')
 
         if options_obj is not None:
@@ -252,56 +258,85 @@ import re
 
 CONTEXT_VOCAB = 'http://www.w3.org/ns/json-ld#context'
 ENTRY_POINT_VOCAB = 'http://schema.org/EntryPoint'
+STYLESHEET_VOCAB = 'stylesheet'
+METADATA_VOCAB = 'metadata'
 
 class Hyper_Object:
-    def __init__(self, url):
-        self.resource_url = url
+    def __init__(self, iri):
+        self.resource_url = iri
 
-        self.header = HeaderReader(url)
+        self.header = HeaderReader(iri)
+        self.jsonld_parser = JsonLdParser("")
+
 
     def is_entry_point(self):
-        return self.header.entry_point is not None
+        return self.header.is_entry_point()
 
 
 class HeaderReader:
-    def __init__(self, url):
-        # Request HEAD
-        reply = request_head(url)
-        response = reply.response()
+    def __init__(self, iri):
+        if not iri:
+            return
 
-        self.header = response.get('header')
-
-        self.header.update(link=self.parse_link_header(self.header.get('link')))
-        self.header.update(allow=self.parse_list(self.header.get('allow')))
-        self.header.update(date=self.parse_date(self.header.get('date')))
-        self.header.update({"access-control-allow-headers": self.parse_list(self.header.get('access-control-allow-headers'))})
-        self.header.update({"access-control-allow-origin": self.parse_list(self.header.get('access-control-allow-origin'))})
-        self.header.update({"access-control-allow-methods": self.parse_list(self.header.get('access-control-allow-methods'))})
-        self.header.update({"access-control-expose-headers": self.parse_list(self.header.get('access-control-expose-headers'))})
-
-        link = self.header.get('link')
-
-        self.stylesheet = link.get('stylesheet')
-        self.metadata = link.get('metadata')
-
-        c = link.get(CONTEXT_VOCAB) or None
-
-        self.context_iri = c['target'] if c and c['type'] == 'application/ld+json' else None
-        self.entry_point = link.get(ENTRY_POINT_VOCAB) or None
-
-        print(self.header)
+        self.headers = self.parse(iri)
 
     def field(self, name):
-        return self.header.get(name)
+        return self.headers.get(name)
+
+    def parse(self, iri):
+        reply = request_head(iri)
+        response = reply.response()
+
+        headers = response.get('headers')
+
+        headers.update({
+            'link': self.parse_link_header(headers.get('link')),
+            'allow': self.parse_list(headers.get('allow')),
+            'date': self.parse_date(headers.get('date')),
+            'access-control-allow-headers': self.parse_list(headers.get('access-control-allow-headers')),
+            'access-control-allow-origin': self.parse_list(headers.get('access-control-allow-origin')),
+            'access-control-allow-methods': self.parse_list(headers.get('access-control-allow-methods')),
+            'access-control-expose-headers': self.parse_list(headers.get('access-control-expose-headers'))
+        })
+
+        return headers
+
+    def link_header(self):
+        return self.field('link')
+
+    def is_entry_point(self):
+        return self.link_header().get(ENTRY_POINT_VOCAB)
+
+    def stylesheet_iri(self):
+        return self.link_header().get(STYLESHEET_VOCAB)
+
+    def metadata_iri(self):
+        return self.link_header().get(METADATA_VOCAB)
+
+    def context_iri(self):
+        link = self.link_header()
+        context = link.get(CONTEXT_VOCAB) or None
+        if not context:
+            raise ValueError('Context link dont exists')
+
+        if context['type'] == 'application/ld+json':
+            raise ValueError('Context is not ld+json media file')
+
+        return context
 
     def parse_list(self, field):
+        if not field:
+            return []
         return field.split(',')
 
     def parse_date(self, date):
+        if not date:
+            return ''
         from datetime import datetime
         return datetime.strptime(date, '%a, %d %b %Y %H:%M:%S GMT')
 
     def parse_link_header(self, header):
+        if not header: {}
         """
         Parses a link header. The results will be key'd by the value of "rel".
 
@@ -355,3 +390,15 @@ class HeaderReader:
 
 class ContextReader:
     pass
+
+from IBGEVisualizer.modules.pyld import jsonld
+class JsonLdParser:
+    def __init__(self, iri):
+        jsonld.set_document_loader(jsonld.hyper_requests_document_loader())
+
+        self.data = self.parse(iri)
+
+    def parse(self, iri):
+
+        print(jsonld.compact("http://172.30.10.86/api/bcim/unidades-federativas/DF", "http://172.30.10.86/api/bcim/unidades-federativas/DF.jsonld"))
+        return {}

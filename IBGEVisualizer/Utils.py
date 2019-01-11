@@ -50,17 +50,22 @@ class Utils:
 
     @staticmethod
     def log(msg, tab=None, level=None):
-        # level recebe o valor default aqui porque na declaração do método, a classe Logging não era reconhecida
-        level = Logging.INFO if not level else level
+        level = level or Logging.INFO
         QgsMessageLog.instance().logMessage(msg, tab, level)
 
     @staticmethod
     def message_box(message, title, box_type=None):
-        # box_type recebe o valor default aqui porque na declaração do método, a classe MessageBox não era reconhecida
-        box_type = MessageBox.INFORMATION if not box_type else box_type
+        box_type = box_type or MessageBox.INFORMATION
+
         mes_box = QtGui.QMessageBox(box_type, title, message)
+
         mes_box.show()
         mes_box.exec_()
+
+    @staticmethod
+    def question_box(message, title):
+        reply = QtGui.QMessageBox.question(None, title, message, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+        return True if reply == QtGui.QMessageBox.Yes else False
 
 
 class Layer:
@@ -106,7 +111,7 @@ class MessageBox:
 
     @staticmethod
     def question(message, title):
-        Utils.message_box(message, title, MessageBox.QUESTION)
+        return Utils.question_box(message, title)
 
     @staticmethod
     def warning(message, title):
@@ -154,12 +159,36 @@ class Config:
             if json_str:
                 data = json.loads(json_str)
 
-            data.update({
-                key: value
-            })
+            key_exists = key and (key in data)
+            if key_exists:
+                if isinstance(value, dict):
+                    data[key].update(value)
+                else:
+                    data.update({key: value})
 
         with open(path, 'w') as file_:
             json.dump(data, file_, indent=2, ensure_ascii=True)
+
+    @staticmethod
+    def update_dict(key, dict_value):
+        import json, os
+
+        path = os.path.dirname(__file__) + '\config.json'
+
+        with open(path, 'r') as file_:
+            json_str = file_.read()
+
+            data = {}
+            if json_str:
+                data = json.loads(json_str)
+
+            key_exists = key and (key in data)
+            if key_exists:
+                if isinstance(dict_value, dict):
+                    data[key] = dict_value
+
+                with open(path, 'w') as file_:
+                    json.dump(data, file_, indent=2, ensure_ascii=True)
 
 
 #========================================================================================================

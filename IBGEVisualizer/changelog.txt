@@ -2,7 +2,7 @@
 changelog
 
 v0.4
-- Added window to construct urls, early work
+- WIP Added window to construct urls
 - Changed dock interface to show tree of resources
 
 v0.3

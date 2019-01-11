@@ -24,9 +24,10 @@ class Reply(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(unicode)
 
-    def __init__(self, command):
+    def __init__(self, command, url=""):
         super(Reply, self).__init__()
         self.command = command
+        self.url = url
 
         self._reply = None
 
@@ -93,9 +94,10 @@ class Reply(QObject):
             status_phrase = self.reply.attribute(QNetworkRequest.HttpReasonPhraseAttribute)
 
             return {
+                'url': self.url,
                 'status_code': status_code,
                 'status_phrase': status_phrase,
-                'header': header_data,
+                'headers': header_data,
                 'body': qbytearray.data()
             }
 
@@ -121,7 +123,7 @@ class QgsRequest:
         access_method = switch.get(self.method.lower())
 
         reply_command = lambda: access_method(self.request)
-        reply = Reply(reply_command)
+        reply = Reply(reply_command, self.url)
 
         return reply
 

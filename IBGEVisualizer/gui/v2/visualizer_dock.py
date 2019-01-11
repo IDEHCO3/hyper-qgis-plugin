@@ -8,10 +8,11 @@ from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal, Qt, QTimer
 from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortFilterProxyModel
 
-from IBGEVisualizer import Utils, HyperResource, Plugin
+from IBGEVisualizer import HyperResource, Plugin
+from IBGEVisualizer.Utils import Config, Layer, MessageBox
+from IBGEVisualizer.gui.v2.components.resource_treewidget_decorator import ResourceTreeWidgetDecorator
 from IBGEVisualizer.gui.v2.dialog_construct_url import DialogConstructUrl
 from IBGEVisualizer.gui.v2.dialog_add_resource import DialogAddResource
-from IBGEVisualizer.gui import ComponentFactory
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -35,23 +36,25 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         self.setupUi(self)
 
-        self.list_resource = TreeWidgetDecorator(self.list_resource)
+        self.list_resource = ResourceTreeWidgetDecorator(self.list_resource)
 
         # Carrega a lista de recurso padrão da classe IBGEVisualizer.model.ListResourceModel
         self.load_resources_from_model()
         #self.list_resource.setModel(ResourceTreeModel())
+
         # Eventos
-        self.bt_add_resource.clicked.connect(self._bt_add_resource_clicked_open)
+        self.bt_add_resource.clicked.connect(self._bt_add_resource_clicked)
+        self.bt_remove_resource.clicked.connect(self._bt_remove_resource_clicked)
 
         self.list_resource.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_resource.customContextMenuRequested.connect(self.openContextMenu)
         self.list_resource.doubleClicked.connect(self._list_resource_doubleClicked)
 
-        self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
+        #self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
 
     def _tx_quick_resource_pressed(self):
         def extract_name(url):
-            return url.strip(" /").split('/')[-1]
+            return url.strip(' /').split('/')[-1]
 
         url = self.tx_quick_resource.text()
         self.tx_quick_resource.clear()
@@ -68,79 +71,97 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             name = item.text(0)
             url = item.text(1)
 
-            if item.childCount() > 0:
+            item_has_children = item.childCount() > 0
+            if item_has_children:
                 return
 
             # Verifica se é um entrypoint com layers ainda não carregadas
-            if HyperResource.is_entry_point(HyperResource.request_head(url).response()):
+            url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+            if url_is_entry_point:
                 self.add_entry_point_to_resources(name, url)
                 return
 
             self.open_operations_editor(name, url)
 
-    def _bt_add_resource_clicked_open(self):
+    def _bt_add_resource_clicked(self):
         self.open_add_resource_dialog()
 
-    def add_resource(self, name, url=''):
+    def _bt_remove_resource_clicked(self):
+        selected_items = self.list_resource.selectedItems()
+
+        if not selected_items:
+            return
+
+        confirm = MessageBox.question(u'Deseja realmente remover o recurso selecionado?', u'Remover Recurso')
+
+        if confirm:
+            memorized_urls = Config.get('memo_urls')
+
+            item_name = selected_items[0].text(0)
+
+            if item_name in memorized_urls:
+                index = self.list_resource.indexOfTopLevelItem(selected_items[0])
+                self.list_resource.takeTopLevelItem(index)
+
+                memorized_urls.pop(item_name)
+                Config.update_dict('memo_urls', memorized_urls)
+
+    def load_resource(self, name, url):
         if not url: return
         if not HyperResource.url_exists(url): return
 
-        head = HyperResource.request_head(url)
+        is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+        if is_entry_point:
+            self.list_resource.add_entry_point(name, url)
+        else:
+            self.list_resource.add_url(name, url)
 
-        if HyperResource.is_entry_point(head.response()):
-            self.add_entry_point_to_resources(name, url)
-            return
+    def add_resource(self, name, url):
+        self.load_resource(name, url)
 
-        self.add_url_to_resources(name, url)
-
-    def add_url_to_resources(self, name, url):
-        widget = ComponentFactory.create_list_resource_element(name, url)
-        self.list_resource.addTopLevelItem(widget)
-
-    def add_entry_point_to_resources(self, name, url):
-        reply = HyperResource.request_get(url)
-        response = reply.response()
-
-        import json
-        entry_point_list = json.loads(response.get('body'))
-
-        # Ordena o dict pela chave.
-        entry_point_list = OrderedDict(sorted(entry_point_list.items(), key=lambda t: t[0]))
-
-        self.list_resource.append_entry_point(name, entry_point_list)
-
+        Config.set('memo_urls', {name: url})
 
     def load_resources_from_model(self):
-        model = Utils.Config.get('memo_urls')
+        model = Config.get('memo_urls')
+        if not model:
+            return
 
         for name, values in model.items():
-            self.add_resource(name, values)
+            self.load_resource(name, values)
 
 
     def openContextMenu(self, position):
         item = self.list_resource.itemAt(position)
-
-        if item and item.childCount() > 0:
+        if not item:
             return
 
-        action_open_layer = QAction(self.tr(u'Carregar camada'), None)
-        action_open_layer.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
-
-        action_open_layer_as = QAction(self.tr(u'Carregar camada como...'), None)
-        action_open_layer_as.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
-
-        action_open_editor = QAction(self.tr(u'Executar operações'), None)
-        action_open_editor.triggered.connect(lambda: self.open_operations_editor(item.text(0), item.text(1)))
-
-        action_rename = QAction(self.tr(u'Renomear'), None)
+        is_tree_leaf = item and item.childCount() == 0
+        if is_tree_leaf:
+            return
 
         menu = QMenu()
+
+        # Load layers action
+        action_open_layer = QAction(self.tr(u'Carregar camada'), None)
+        action_open_layer.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
         menu.addAction(action_open_layer)
-        menu.addAction(action_open_layer_as)
+
+        # Load layers as...
+        #action_open_layer_as = QAction(self.tr(u'Carregar camada como...'), None)
+        #action_open_layer_as.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
+        # menu.addAction(action_open_layer_as)
+
         menu.addSeparator()
+
+        # Montar Operações
+        action_open_editor = QAction(self.tr(u'Montar operações'), None)
+        action_open_editor.triggered.connect(lambda: self.open_operations_editor(item.text(0), item.text(1)))
         menu.addAction(action_open_editor)
-        menu.addSeparator()
-        menu.addAction(action_rename)
+
+        #menu.addSeparator()
+
+        #action_rename = QAction(self.tr(u'Renomear'), None)
+        #menu.addAction(action_rename)
 
         menu.exec_(self.list_resource.viewport().mapToGlobal(position))
 
@@ -177,7 +198,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             layer = Plugin.create_layer_with_hyper_object(layer_name, obj)
 
             if layer:
-                Utils.Layer.add(layer)
+                Layer.add(layer)
 
 
     def start_request(self):
@@ -204,7 +225,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
     def show_request_error(self, error):
         self.request_error = True
         self.update_status(u'Requisição retornou um erro')
-        Utils.MessageBox.critical(error, u'Requisição retornou um erro')
+        MessageBox.critical(error, u'Requisição retornou um erro')
 
 
     def close_event(self, event):
@@ -218,36 +239,6 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
 
 
-class TreeWidgetDecorator:
-    def __init__(self, decorated):
-        self._decorated = decorated
-
-    def __getattr__(self, name):
-        return getattr(self._decorated, name)
-
-    def append(self, item, parent=None):
-        if parent:
-            parent.addChild(item)
-            return
-
-        self.addTopLevelItem(item)
-
-    # Cria um entry point na lista de recursos
-    # name: nome do entry point
-    # elements: dict contendo chave:valor dos recursos do entry point
-    def append_entry_point(self, name, elements):
-        parent_item = ComponentFactory.create_list_resource_element(name, '')
-        icon = QIcon(':/plugins/IBGEVisualizer/icon-entry-point.png')
-        parent_item.setIcon(0, icon)
-
-        for layer_name, layer_url in elements.items():
-            item = ComponentFactory.create_list_resource_element(layer_name, layer_url)
-            self.append(item, parent_item)
-
-        self.append(parent_item)
-
-
-
 from PyQt4.QtCore import QObject, QModelIndex
 from PyQt4.QtGui import QStandardItemModel
 
@@ -255,7 +246,7 @@ class ResourceTreeModel(QStandardItemModel):
     def __init__(self):
         super(ResourceTreeModel, self).__init__()
 
-        memo = Utils.Config.get('memo_urls')
+        memo = Config.get('memo_urls')
         self._data = memo
 
     def data(self, index, role=Qt.DisplayRole):

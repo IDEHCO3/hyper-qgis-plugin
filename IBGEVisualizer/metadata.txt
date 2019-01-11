@@ -11,7 +11,7 @@
 name=IBGE Visualizer
 qgisMinimumVersion=2.14
 description=Acesso ao Visualizer do IBGE
-version=0.3.3
+version=0.4.3
 author=IBGE
 email=andre.censitario@ibge.gov.br
 
