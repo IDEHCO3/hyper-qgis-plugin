@@ -3,19 +3,22 @@
 
 import string
 
-from IBGEVisualizer.modules.pyld.jsonld import (JsonLdError, urllib_parse,
-                         parse_link_header, LINK_HEADER_REL)
+from IBGEVisualizer.modules.pyld.jsonld import (JsonLdError, parse_link_header)
+import urlparse as urllib_parse
 
-def hyper_requests_document_loader(url=''):
+LINK_HEADER_REL = 'http://www.w3.org/ns/json-ld#context'
+
+def hyper_requests_document_loader(**kwargs):
     from IBGEVisualizer import HyperResource
 
     def loader(url):
         try:
             # validate URL
             pieces = urllib_parse.urlparse(url)
+
             if not all([pieces.scheme, pieces.netloc] or
-                pieces.scheme not in ['http', 'https'] or
-                set(pieces.netloc) > set(string.ascii_letters + string.digits + '-.:')):
+                       pieces.scheme not in ['http', 'https'] or
+                       set(pieces.netloc) > set(string.ascii_letters + string.digits + '-.:')):
 
                 raise JsonLdError(
                     'URL could not be dereferenced; '
@@ -29,19 +32,17 @@ def hyper_requests_document_loader(url=''):
 
             request = HyperResource.request_get(url)
             response = request.response()
-
+            print('url', response.get('url'))
             doc = {
                 'contextUrl': None,
-                'documentUrl': response.get('url'),
+                'documentUrl': str(response.get('url')),
                 'document': response.get('body')
             }
             content_type = response.get('headers').get('content-type')
             link_header = response.get('headers').get('link')
 
             if link_header:
-                link_header = parse_link_header(link_header).get(
-                    LINK_HEADER_REL)
-
+                link_header = parse_link_header(link_header).get(LINK_HEADER_REL)
                 # only 1 related link header permitted
                 if isinstance(link_header, list):
                     raise JsonLdError(
@@ -51,7 +52,8 @@ def hyper_requests_document_loader(url=''):
                         {'url': url},
                         code='multiple context link headers')
 
-                doc['contextUrl'] = link_header['target']
+                if link_header:
+                    doc['contextUrl'] = link_header['target']
 
             return doc
 

@@ -792,8 +792,10 @@ class JsonLdProcessor(object):
                 raise JsonLdError(
                     'No remote document found at the given URL.',
                     'jsonld.NullRemoteDocument')
+
             if _is_string(remote_doc['document']):
                 remote_doc['document'] = json.loads(remote_doc['document'])
+
         except Exception as cause:
             raise JsonLdError(
                 'Could not retrieve a JSON-LD document from the URL.',
@@ -817,8 +819,8 @@ class JsonLdProcessor(object):
                 input_['expandContext'] = {'@context': expand_context}
 
         try:
-            self._retrieve_context_urls(
-                input_, {}, options['documentLoader'], options['base'])
+            self._retrieve_context_urls(input_, {}, options['documentLoader'], options['base'])
+
         except Exception as cause:
             raise JsonLdError(
                 'Could not perform JSON-LD expansion.',
@@ -830,22 +832,19 @@ class JsonLdProcessor(object):
 
         # process optional expandContext
         if 'expandContext' in input_:
-            active_ctx = self.process_context(
-                active_ctx, input_['expandContext']['@context'], options)
+            active_ctx = self.process_context(active_ctx, input_['expandContext']['@context'], options)
 
         # process remote context from HTTP Link Header
         if remote_context is not None:
-            active_ctx = self.process_context(
-                active_ctx, remote_context, options)
+            active_ctx = self.process_context(active_ctx, remote_context, options)
 
         # do expansion
         expanded = self._expand(active_ctx, None, document, options, False)
 
         # optimize away @graph with no other properties
-        if (_is_object(expanded) and '@graph' in expanded and
-                len(expanded) == 1):
+        if _is_object(expanded) and '@graph' in expanded and len(expanded) == 1:
             expanded = expanded['@graph']
-        elif expanded is None:
+        elif not expanded:
             expanded = []
 
         # normalize to an array
@@ -1195,8 +1194,8 @@ class JsonLdProcessor(object):
                 _is_object(local_ctx) and '@context' not in local_ctx)):
             local_ctx = {'@context': local_ctx}
         try:
-            self._retrieve_context_urls(
-                local_ctx, {}, options['documentLoader'], options['base'])
+            self._retrieve_context_urls(local_ctx, {}, options['documentLoader'], options['base'])
+
         except Exception as cause:
             raise JsonLdError(
                 'Could not process JSON-LD context.',
@@ -4748,6 +4747,7 @@ class JsonLdProcessor(object):
                     'Cyclical @context URLs detected.',
                     'jsonld.ContextUrlError', {'url': url},
                     code='recursive context inclusion')
+
             cycles_ = copy.deepcopy(cycles)
             cycles_[url] = True
 
@@ -4788,8 +4788,10 @@ class JsonLdProcessor(object):
 
             # append context URL to context if given
             if remote_doc['contextUrl'] is not None:
-                ctx['@context'] = JsonLdProcessor.arrayify(ctx['@context'])
-                ctx['@context'].append(remote_doc['contextUrl'])
+                arr = JsonLdProcessor.arrayify(ctx['@context'])
+                arr.append(remote_doc['contextUrl'])
+
+                ctx['@context'] = arr
 
             # recurse
             self._retrieve_context_urls(ctx, cycles_, load_document, url)

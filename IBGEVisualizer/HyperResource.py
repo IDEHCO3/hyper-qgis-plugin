@@ -266,7 +266,7 @@ class Hyper_Object:
         self.resource_url = iri
 
         self.header = HeaderReader(iri)
-        self.jsonld_parser = JsonLdParser("")
+        self.jsonld_parser = JsonLdParser(iri)
 
 
     def is_entry_point(self):
@@ -399,6 +399,5 @@ class JsonLdParser:
         self.data = self.parse(iri)
 
     def parse(self, iri):
-
-        print(jsonld.compact("http://172.30.10.86/api/bcim/unidades-federativas/DF", "http://172.30.10.86/api/bcim/unidades-federativas/DF.jsonld"))
+        print(jsonld.expand(iri))
         return {}

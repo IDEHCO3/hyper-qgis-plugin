@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import os
-from collections import OrderedDict
 
 from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal, Qt, QTimer
@@ -13,6 +12,7 @@ from IBGEVisualizer.Utils import Config, Layer, MessageBox
 from IBGEVisualizer.gui.v2.components.resource_treewidget_decorator import ResourceTreeWidgetDecorator
 from IBGEVisualizer.gui.v2.dialog_construct_url import DialogConstructUrl
 from IBGEVisualizer.gui.v2.dialog_add_resource import DialogAddResource
+from IBGEVisualizer.gui.v2.dialog_edit_resource import DialogEditResource
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -38,16 +38,14 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         self.list_resource = ResourceTreeWidgetDecorator(self.list_resource)
 
-        # Carrega a lista de recurso padrão da classe IBGEVisualizer.model.ListResourceModel
         self.load_resources_from_model()
-        #self.list_resource.setModel(ResourceTreeModel())
 
         # Eventos
         self.bt_add_resource.clicked.connect(self._bt_add_resource_clicked)
         self.bt_remove_resource.clicked.connect(self._bt_remove_resource_clicked)
 
         self.list_resource.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list_resource.customContextMenuRequested.connect(self.openContextMenu)
+        self.list_resource.customContextMenuRequested.connect(self.open_context_menu)
         self.list_resource.doubleClicked.connect(self._list_resource_doubleClicked)
 
         #self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
@@ -76,10 +74,10 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
                 return
 
             # Verifica se é um entrypoint com layers ainda não carregadas
-            url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
-            if url_is_entry_point:
-                self.add_entry_point_to_resources(name, url)
-                return
+            # url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+            # if url_is_entry_point:
+            #     self.add_entry_point_to_resources(name, url)
+            #     return
 
             self.open_operations_editor(name, url)
 
@@ -110,11 +108,15 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         if not url: return
         if not HyperResource.url_exists(url): return
 
+        from PyQt4.QtGui import QBrush, QColor
+
         is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
         if is_entry_point:
-            self.list_resource.add_entry_point(name, url)
+            parent_item = self.list_resource.add_entry_point(name, url)
+            parent_item.setBackground(0, QBrush(QColor(255, 252, 226)))
         else:
-            self.list_resource.add_url(name, url)
+            item = self.list_resource.add_url(name, url)
+            item.setBackground(0, QBrush(QColor(255, 252, 226)))
 
     def add_resource(self, name, url):
         self.load_resource(name, url)
@@ -126,25 +128,23 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         if not model:
             return
 
-        for name, values in model.items():
-            self.load_resource(name, values)
+        for name, value in model.items():
+            self.load_resource(name, value)
 
 
-    def openContextMenu(self, position):
+    def open_context_menu(self, position):
         item = self.list_resource.itemAt(position)
         if not item:
             return
 
-        is_tree_leaf = item and item.childCount() == 0
-        if is_tree_leaf:
-            return
+        is_tree_leaf = item.childCount() == 0
 
         menu = QMenu()
 
         # Load layers action
         action_open_layer = QAction(self.tr(u'Carregar camada'), None)
         action_open_layer.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
-        menu.addAction(action_open_layer)
+        menu.addAction(action_open_layer) if is_tree_leaf else None
 
         # Load layers as...
         #action_open_layer_as = QAction(self.tr(u'Carregar camada como...'), None)
@@ -156,14 +156,22 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         # Montar Operações
         action_open_editor = QAction(self.tr(u'Montar operações'), None)
         action_open_editor.triggered.connect(lambda: self.open_operations_editor(item.text(0), item.text(1)))
-        menu.addAction(action_open_editor)
+        menu.addAction(action_open_editor) if is_tree_leaf else None
 
-        #menu.addSeparator()
+        menu.addSeparator() if is_tree_leaf else None
 
-        #action_rename = QAction(self.tr(u'Renomear'), None)
-        #menu.addAction(action_rename)
+        action_edit = QAction(self.tr(u'Editar'), None)
+        action_edit.triggered.connect(lambda: self.open_edit_dialog(item))
+        menu.addAction(action_edit)
 
         menu.exec_(self.list_resource.viewport().mapToGlobal(position))
+
+    def open_edit_dialog(self, item):
+        dialog_edit_resource = DialogEditResource(item)
+        dialog_edit_resource.accepted.connect(self._resource_edited)
+        dialog_edit_resource.exec_()
+
+        return dialog_edit_resource
 
     def open_operations_editor(self, name, url):
         dialog_construct_url = DialogConstructUrl(name, url)
@@ -178,6 +186,18 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         dialog_add_resource.exec_()
 
         return dialog_add_resource
+
+    def _resource_edited(self, tree_item, new_name, new_url):
+        memo = Config.get('memo_urls')
+
+        old = memo.pop(tree_item.text(0))
+        new = {new_name: new_url}
+
+        memo.update(new)
+        Config.update_dict('memo_urls', memo)
+
+        tree_item.setText(0, new_name)
+        tree_item.setText(1, new_url)
 
     def _load_layer_from_url(self, layer_name, url):
         get_reply = HyperResource.request_get(url)

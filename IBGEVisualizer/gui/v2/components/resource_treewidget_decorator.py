@@ -18,7 +18,7 @@ class ResourceTreeWidgetDecorator:
 
     def add_url(self, name, url):
         widget = ComponentFactory.create_list_resource_element(name, url)
-        self.append(widget)
+        return self.append(widget)
 
     def add_entry_point(self, name, url):
         reply = HyperResource.request_get(url)
@@ -30,22 +30,23 @@ class ResourceTreeWidgetDecorator:
         order_alphabetically = lambda i: sorted(i, key=lambda t: t[0])
         entry_point_list = OrderedDict(order_alphabetically(entry_point_list.items()))
 
-        self.append_entry_point(name, entry_point_list)
+        return self.append_entry_point(name, url, entry_point_list)
 
     def append(self, item, parent=None):
         if parent:
             parent.addChild(item)
-            return
+            return parent
 
         self.addTopLevelItem(item)
+        return item
 
     # Cria um entry point na lista de recursos
     # name: nome do entry point
     # elements: dict contendo chave:valor dos recursos do entry point
-    def append_entry_point(self, name, entry_point_elements):
+    def append_entry_point(self, name, url, entry_point_elements):
         create_item = ComponentFactory.create_list_resource_element
 
-        parent_item = create_item(name, '')
+        parent_item = create_item(name, url)
         entry_point_icon = QIcon(':/plugins/IBGEVisualizer/icon-entry-point.png')
         parent_item.setIcon(0, entry_point_icon)
 
@@ -54,3 +55,4 @@ class ResourceTreeWidgetDecorator:
             self.append(item, parent_item)
 
         self.append(parent_item)
+        return parent_item

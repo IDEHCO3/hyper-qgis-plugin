@@ -117,14 +117,13 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         exists, resp = HyperResource.url_exists(url)
         if not exists:
             Utils.Logging.info(
-                u''
-                u'''Não foi possível localizar url: {}
-                {}
-                '''
-            .format(
-                self.resource_url, resp
-            ), 'IBGEVisualizer')
-            Utils.MessageBox.info(u'Não foi possível localizar url: {}'.format(self.resource_url), 'IBGEVisualizer')
+                u'Não foi possível localizar url: {} {}'.format(self.resource_url, resp),
+                u'IBGEVisualizer'
+            )
+            Utils.MessageBox.info(
+                u'Não foi possível localizar url: {}'.format(self.resource_url),
+                u'IBGEVisualizer'
+            )
             return
 
         reply = HyperResource.request_options(url)
@@ -134,7 +133,7 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
     def create_operations_list(self, operations):
         if not operations:
-            return      # ERRO
+            return
 
         supported_properties = operations.get('supported_properties')
         supported_operations = operations.get('supported_operations')
