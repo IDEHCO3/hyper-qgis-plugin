@@ -70,7 +70,7 @@ Tipo: {type_}
 
     def request_sample(self, url, property_, param1, param2):
         url = url + ('' if url.endswith('/') else '/')
-        projection_url = u'{url}projection/{prop}/offset-limit/{param1}/{param2}'.format(
+        projection_url = u'{url}projection/{prop}/offset-limit/{param1}&{param2}'.format(
             url=url,
             prop=property_,
             param1=param1,

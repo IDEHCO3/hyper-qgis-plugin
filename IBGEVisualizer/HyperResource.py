@@ -40,7 +40,8 @@ def is_entry_point(response):
         link_tab = response.get('headers').get('link')
 
         if link_tab:
-            return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0
+            return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0 \
+                or link_tab.find('rel="https://schema.org/EntryPoint"') >= 0
 
     return False
 
@@ -67,23 +68,17 @@ def translate_options(response, url=''):
         resources = [path if path.endswith('/') else path + '/' for path in resources]
         # resources = [text_url + path for path in resources]
 
-        # Se url igual entry_point, criar fake Supported Property
-        if url == entry_point or url + '/' == entry_point:
-            supported_properties = [SupportedProperty(name=name) for name in resources]
+        if 'hydra:supportedProperties' in json_data:
+            supported_properties = [SupportedProperty(**data) for data in json_data['hydra:supportedProperties']]
             supported_properties.sort(key=lambda prop: prop.name)
-            supported_operations = None
         else:
-            if 'hydra:supportedProperties' in json_data:
-                supported_properties = [SupportedProperty(**data) for data in json_data['hydra:supportedProperties']]
-                supported_properties.sort(key=lambda prop: prop.name)
-            else:
-                supported_properties = None
+            supported_properties = None
 
-            if 'hydra:supportedOperations' in json_data:
-                supported_operations = [SupportedOperation(**data) for data in json_data['hydra:supportedOperations']]
-                supported_operations.sort(key=lambda oper: oper.name)
-            else:
-                supported_operations = None
+        if 'hydra:supportedOperations' in json_data:
+            supported_operations = [SupportedOperation(**data) for data in json_data['hydra:supportedOperations']]
+            supported_operations.sort(key=lambda oper: oper.name)
+        else:
+            supported_operations = None
 
         r = {
             'url': url,
@@ -110,7 +105,8 @@ def _get_fields(context):
         u"http://schema.org/Text": unicode,
         u"http://schema.org/Float": float,
         u"http://schema.org/Boolean": bool,
-        u"http://geojson.org/geojson-ld/vocab.html#geometry": u'geometria'
+        u"http://geojson.org/geojson-ld/vocab.html#geometry": u'geometria',
+        u"@id": unicode
     }
 
     for k, v in context.items():
@@ -130,8 +126,7 @@ def _get_entry_point_from_link(link_tab):
 
     return entry_point
 
-# Hyper Object é uma objeto que reune o output do get e do options
-# em um objeto só, dando mais sentido ao recurso
+# Hyper Object é um objeto que reune o output do get e do options
 def create_hyper_object(get_reply, options_reply, url=''):
     return HyperObject(translate_get(get_reply), translate_options(options_reply, url))
 

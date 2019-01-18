@@ -2,7 +2,6 @@
 changelog
 
 v0.4
-- WIP integration with json-ld processor
 - WIP Added window to construct urls
 - Changed dock interface to show tree of resources
 

@@ -60,13 +60,13 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         ####
         # tb Data
         ####
-        self.tabDate_bt_eq.clicked.connect(lambda x: self._set_preview_operator('='))
-        self.tabDate_bt_neq.clicked.connect(lambda x: self._set_preview_operator('!='))
-        self.tabDate_bt_lt.clicked.connect(lambda x: self._set_preview_operator('<'))
-        self.tabDate_bt_gt.clicked.connect(lambda x: self._set_preview_operator('>'))
-        self.tabDate_bt_lte.clicked.connect(lambda x: self._set_preview_operator('<='))
-        self.tabDate_bt_gte.clicked.connect(lambda x: self._set_preview_operator('>='))
-        self.tabDate_bt_between.clicked.connect(lambda x: self._set_preview_operator('between'))
+        # self.tabDate_bt_eq.clicked.connect(lambda x: self._set_preview_operator('='))
+        # self.tabDate_bt_neq.clicked.connect(lambda x: self._set_preview_operator('!='))
+        # self.tabDate_bt_lt.clicked.connect(lambda x: self._set_preview_operator('<'))
+        # self.tabDate_bt_gt.clicked.connect(lambda x: self._set_preview_operator('>'))
+        # self.tabDate_bt_lte.clicked.connect(lambda x: self._set_preview_operator('<='))
+        # self.tabDate_bt_gte.clicked.connect(lambda x: self._set_preview_operator('>='))
+        # self.tabDate_bt_between.clicked.connect(lambda x: self._set_preview_operator('between'))
 
         ####
         # tab URL
@@ -140,7 +140,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         prop = self.preview_builder.property()
         url = url + ('' if url.endswith('/') else '/')
 
-        projection_url = u'{url}projection/{prop}/offset-limit/1/200'.format(url=url, prop=prop)
+        projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
 
         reply = HyperResource.request_options(projection_url)
         response = HyperResource.translate_options(reply.response())
@@ -160,7 +160,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
 
     def _get_property_from_url(self, url, prop):
         url = url + ('' if url.endswith('/') else '/')
-        projection_url = u'{url}projection/{prop}/offset-limit/1/200'.format(url=url, prop=prop)
+        projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
 
         reply = HyperResource.request_get(projection_url)
         response = reply.response()
@@ -215,7 +215,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
             prop = self.preview_builder.property()
             url = url + ('' if url.endswith('/') else '/')
 
-            projection_url = u'{url}projection/{prop}/offset-limit/1/200'.format(url=url, prop=prop)
+            projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
 
             reply = HyperResource.request_options(projection_url)
             response = HyperResource.translate_options(reply.response())

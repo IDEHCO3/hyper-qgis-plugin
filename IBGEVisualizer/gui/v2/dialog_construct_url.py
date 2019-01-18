@@ -31,8 +31,7 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
         self.setWindowTitle(u'Operações da camada: ' + self.resource_name + ' - ' + self.resource_url)
 
-        operations = self.read_operations_from_url(self.resource_url)
-        self.create_operations_list(operations)
+        self._on_load_commands()
 
         self.url_builder = UrlBuilder()
 
@@ -42,6 +41,10 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         self.bt_load_url.clicked.connect(self._bt_load_url_clicked)
 
         self.url_builder.set_url(self.resource_url)
+
+    def _on_load_commands(self):
+        operations = self.read_operations_from_url(self.resource_url)
+        self.create_operations_list(operations)
 
     def _list_attributes_itemClicked(self, item):
         if item.type_ == 'supported_property':
