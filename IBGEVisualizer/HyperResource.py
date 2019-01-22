@@ -1,8 +1,10 @@
 
 # coding: utf-8
 
-import copy
 import os
+import re
+import copy
+import json
 
 import Utils
 import request
@@ -55,8 +57,6 @@ def translate_options(response, url=''):
 
     link_tab = headers.get('link') or ''
 
-    entry_point = _get_entry_point_from_link(link_tab)
-
     try:
         json_data = json.loads(body)
 
@@ -82,7 +82,6 @@ def translate_options(response, url=''):
 
         r = {
             'url': url,
-            'entry_point': entry_point,
             'fields': fields,
             'attributes': sorted(resources),
             'supported_properties': supported_properties,
@@ -216,7 +215,6 @@ class SupportedOperation(object):
 
         return html_formmated
 
-import json
 
 class OperationContext:
     @staticmethod
@@ -249,41 +247,110 @@ class OperationContext:
         )
 
 
-import re
+JSON_LD_CONTENT_TYPE = 'application/ld+json'
 
-CONTEXT_VOCAB = 'http://www.w3.org/ns/json-ld#context'
-ENTRY_POINT_VOCAB = 'http://schema.org/EntryPoint'
-STYLESHEET_VOCAB = 'stylesheet'
-METADATA_VOCAB = 'metadata'
+CONTEXT_LINK = 'http://www.w3.org/ns/json-ld#context'
+ENTRY_POINT_LINK = 'https://schema.org/EntryPoint'
+STYLESHEET_LINK = 'stylesheet'
+METADATA_LINK = 'metadata'
 
-class Hyper_Object:
-    def __init__(self, iri):
-        self.resource_url = iri
+HYDRA_VOCAB = 'hydra:'
+SUPPORTED_OPERATION_VOCAB = HYDRA_VOCAB + 'supportedOperations'
+SUPPORTED_PROPERTY_VOCAB = HYDRA_VOCAB + 'supportedProperties'
 
-        self.header = HeaderReader(iri)
-        self.jsonld_parser = JsonLdParser(iri)
+class Resource:
+    def __init__(self, iri, name=''):
+        self._resource_name = None
+        self._resource_iri = None
 
+        self._header = None
+        self._get = None
+        self._options = None
+
+        self.iri = iri
+        self.name = name
+        #self.jsonld_parser = JsonLdParser(iri)
+
+    @property
+    def name(self):
+        return self._resource_name
+
+    @name.setter
+    def name(self, name):
+        self._resource_name = name
+
+    @property
+    def iri(self):
+        return self._resource_iri
+
+    @iri.setter
+    def iri(self, iri):
+        i = iri.strip()
+        if self._resource_iri == i:
+            return
+
+        self._resource_iri = i
+        self._header = None
+        self._get = None
+        self._options = None
+
+    def header(self):
+        if self._header is None:
+            self._header = HeaderReader(self.iri)
+
+        return self._header
+
+    def data(self):
+        if self._get is None:
+            self._get = GetReader(self.iri)
+
+        return self._get.data
+
+    def options(self):
+        if self._options is None:
+            self._options = OptionsReader(self.iri)
+
+        return self._options
 
     def is_entry_point(self):
-        return self.header.is_entry_point()
+        return self.header().is_entry_point()
 
 
 class HeaderReader:
     def __init__(self, iri):
-        if not iri:
+        i = iri.strip()
+        if not i:
             return
 
-        self.headers = self.parse(iri)
+        self.__headers = None
+
+        self.iri = i
+
+    @property
+    def headers(self):
+        if not self.__headers:
+            self.__headers = self._parse(self.iri)
+
+        return self.__headers
+
+    @headers.setter
+    def headers(self, val):
+        pass
 
     def field(self, name):
         return self.headers.get(name)
 
-    def parse(self, iri):
+    def _parse(self, iri):
         reply = request_head(iri)
         response = reply.response()
 
+        if 200 > response['status_code'] >= 300:
+            raise Exception(u'Acesso à {} retornou {} {}'.format(
+                iri, response['status_code'], response['status_phrase']))
+
         headers = response.get('headers')
 
+        headers.update(response)
         headers.update({
             'link': self.parse_link_header(headers.get('link')),
             'allow': self.parse_list(headers.get('allow')),
@@ -300,21 +367,21 @@ class HeaderReader:
         return self.field('link')
 
     def is_entry_point(self):
-        return self.link_header().get(ENTRY_POINT_VOCAB)
+        return self.link_header().get(ENTRY_POINT_LINK) or False
 
     def stylesheet_iri(self):
-        return self.link_header().get(STYLESHEET_VOCAB)
+        return self.link_header().get(STYLESHEET_LINK)
 
     def metadata_iri(self):
-        return self.link_header().get(METADATA_VOCAB)
+        return self.link_header().get(METADATA_LINK)
 
     def context_iri(self):
         link = self.link_header()
-        context = link.get(CONTEXT_VOCAB) or None
+        context = link.get(CONTEXT_LINK) or None
         if not context:
             raise ValueError('Context link dont exists')
 
-        if context['type'] == 'application/ld+json':
+        if context['type'] == JSON_LD_CONTENT_TYPE:
             raise ValueError('Context is not ld+json media file')
 
         return context
@@ -322,11 +389,13 @@ class HeaderReader:
     def parse_list(self, field):
         if not field:
             return []
+
         return field.split(',')
 
     def parse_date(self, date):
         if not date:
             return ''
+
         from datetime import datetime
         return datetime.strptime(date, '%a, %d %b %Y %H:%M:%S GMT')
 
@@ -383,10 +452,111 @@ class HeaderReader:
         return rval
 
 
+class GetReader:
+    def __init__(self, iri):
+        if not iri:
+            return
+
+        self.iri = iri
+
+        self.__data = None
+
+    @property
+    def data(self):
+        if not self.__data:
+            self.__data = self._response(self.iri)
+
+            if 200 > self.__data['status_code'] >= 300:
+                raise Exception(u'Acesso à {} retornou {} {}'.format(
+                    self.iri, self.__data['status_code'], self.__data['status_phrase']))
+
+        return self.__data.get('body')
+
+    @data.setter
+    def data(self, val):
+        pass
+
+    def _response(self, iri):
+        reply = request_get(iri)
+        response = reply.response()
+
+        return response
+        #return get
+
+class OptionsReader:
+    def __init__(self, iri):
+        if not iri:
+            return
+
+        self.iri = iri
+
+        self._operations = None
+        self._properties = None
+
+    def _parse(self, callback):
+        response = self._response(self.iri)
+
+        invalid_status_code = 200 > response['status_code'] >= 300
+        if invalid_status_code:
+            raise Exception(u'Acesso à {} retornou {} {}'.format(
+                self.iri, response['status_code'], response['status_phrase']))
+
+        options_body = response.get('body')
+        json_opt = json.loads(options_body)
+
+        #TODO passar json_opt por json-ld parser para acesso semântico aos elementos
+
+        return callback(json_opt)
+
+    def operations(self):
+        if self._operations is None:
+            self._operations = self._parse(self._extract_supported_operations)
+
+        return self._operations
+
+    def properties(self):
+        if self._properties is None:
+            self._properties = self._parse(self._extract_supported_properties)
+
+        return self._properties
+
+    @staticmethod
+    def _extract_supported_operations(json_options):
+        if SUPPORTED_OPERATION_VOCAB not in json_options:
+            return {}
+
+        json_supported_oper = json_options[SUPPORTED_OPERATION_VOCAB]
+
+        return_array = [SupportedOperation(**elem) for elem in json_supported_oper]
+        return_array.sort(key=lambda oper: oper.name)
+
+        return return_array
+
+    @staticmethod
+    def _extract_supported_properties(json_options):
+        if SUPPORTED_PROPERTY_VOCAB not in json_options:
+            return {}
+
+        json_supported_prop = json_options[SUPPORTED_PROPERTY_VOCAB]
+
+        return_array = [SupportedProperty(**elem) for elem in json_supported_prop]
+        return_array.sort(key=lambda prop: prop.name)
+
+        return return_array
+
+    def _response(self, iri):
+        reply = request_options(iri)
+        response = reply.response()
+
+        return response
+        #return get
+
 class ContextReader:
     pass
 
+
 from IBGEVisualizer.modules.pyld import jsonld
+
 class JsonLdParser:
     def __init__(self, iri):
         jsonld.set_document_loader(jsonld.hyper_requests_document_loader())

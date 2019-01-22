@@ -13,8 +13,32 @@ class ResourceTreeWidgetDecorator:
     def __init__(self, decorated):
         self._decorated = decorated
 
+        # Events
+        self.itemDoubleClicked.connect(self._on_itemDoubleClicked)
+
     def __getattr__(self, name):
         return getattr(self._decorated, name)
+
+    def _on_itemDoubleClicked(self, item, column_index):
+        if not item:
+            return
+
+        name = item.text(0)
+        url = item.text(1)
+
+        item_is_leaf_node = item.childCount() <= 0
+        if item_is_leaf_node:
+            # Verificar se item é entry_point
+            # Se sim carregar lista de camadas
+            # senão retornar
+            url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+            if url_is_entry_point:
+                self.load_entry_point_children(item)
+                return
+            return
+
+    def load_entry_point_children(self, item):
+        pass
 
     def add_url(self, name, url):
         widget = ComponentFactory.create_list_resource_element(name, url)

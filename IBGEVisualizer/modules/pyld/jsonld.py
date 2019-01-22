@@ -1325,7 +1325,7 @@ class JsonLdProcessor(object):
 
         :return: all of the values for a subject's property as an array.
         """
-        return JsonLdProcessor.arrayify(subject.get(property) or [])
+        return JsonLdProcessor.arrayify(subject.data(property) or [])
 
     @staticmethod
     def remove_property(subject, property):
@@ -1391,9 +1391,9 @@ class JsonLdProcessor(object):
         # 2. equal @values
         if (_is_value(v1) and _is_value(v2) and
                 v1['@value'] == v2['@value'] and
-                v1.get('@type') == v2.get('@type') and
-                v1.get('@language') == v2.get('@language') and
-                v1.get('@index') == v2.get('@index')):
+                v1.data('@type') == v2.data('@type') and
+                v1.data('@language') == v2.data('@language') and
+                v1.data('@index') == v2.data('@index')):
             type1 = type(v1['@value'])
             type2 = type(v2['@value'])
             if type1 == bool or type2 == bool:
@@ -1597,7 +1597,7 @@ class JsonLdProcessor(object):
         s = triple['subject']
         p = triple['predicate']
         o = triple['object']
-        g = triple.get('name', {'value': graph_name})['value']
+        g = triple.data('name', {'value': graph_name})['value']
 
         quad = ''
 
@@ -1672,9 +1672,9 @@ class JsonLdProcessor(object):
                     t1[attr]['value'] != t2[attr]['value']):
                 return False
 
-        if t1['object'].get('language') != t2['object'].get('language'):
+        if t1['object'].data('language') != t2['object'].data('language'):
             return False
-        if t1['object'].get('datatype') != t2['object'].get('datatype'):
+        if t1['object'].data('datatype') != t2['object'].data('datatype'):
             return False
 
         return True
@@ -1749,7 +1749,7 @@ class JsonLdProcessor(object):
             # apply any context defined on an alias of @type
             # if key is @type and any compacted value is a term having a local
             # context, overlay that context
-            for type in element.get('@type', []):
+            for type in element.data('@type', []):
                 compacted_type = self._compact_iri(
                         active_ctx, type, vocab=True)
 
@@ -1856,7 +1856,7 @@ class JsonLdProcessor(object):
                         active_ctx, expanded_property, expanded_value,
                         vocab=True, reverse=inside_reverse)
                     nest_result = rval
-                    nest_property = active_ctx['mappings'].get(item_active_property, {}).get('@nest')
+                    nest_property = active_ctx['mappings'].get(item_active_property, {}).data('@nest')
                     if nest_property:
                         self._check_nest_property(active_ctx, nest_property)
                         if not _is_object(rval.get(nest_property)):
@@ -1875,7 +1875,7 @@ class JsonLdProcessor(object):
 
                     # if item_active_property is a @nest property, add values to nestResult, otherwise rval
                     nest_result = rval
-                    nest_property = active_ctx['mappings'].get(item_active_property, {}).get('@nest')
+                    nest_property = active_ctx['mappings'].get(item_active_property, {}).data('@nest')
                     if nest_property:
                         self._check_nest_property(active_ctx, nest_property)
                         if not _is_object(rval.get(nest_property)):
@@ -1941,7 +1941,7 @@ class JsonLdProcessor(object):
                                 nest_result[item_active_property] = map_object
 
                             # index on @id or @index or alias of @none
-                            key = expanded_item.get(
+                            key = expanded_item.data(
                                 ('@id' if '@id' in container else '@index'),
                                 self._compact_iri(active_ctx, '@none'))
                             # add compactedItem to map, using value of `@id`
@@ -1986,9 +1986,9 @@ class JsonLdProcessor(object):
                         if '@language' in container:
                             if _is_value(compacted_item):
                                 compacted_item = compacted_item['@value']
-                            key = expanded_item.get('@language')
+                            key = expanded_item.data('@language')
                         elif '@index' in container:
-                            key = expanded_item.get('@index')
+                            key = expanded_item.data('@index')
                         elif '@id' in container:
                             id_key = self._compact_iri(active_ctx, '@id')
                             key = compacted_item.pop(id_key, None)
@@ -2249,7 +2249,7 @@ class JsonLdProcessor(object):
             # syntax error if @id is not a string
             if expanded_property == '@id':
                 if not _is_string(value):
-                    if not options.get('isFrame'):
+                    if not options.data('isFrame'):
                         raise JsonLdError(
                             'Invalid JSON-LD syntax; "@id" value must be a '
                             'string.', 'jsonld.SyntaxError',
@@ -2362,7 +2362,7 @@ class JsonLdProcessor(object):
                             {'propertyIsArray': True})
 
                 # merge in all reversed properties
-                reverse_map = expanded_parent.get('@reverse')
+                reverse_map = expanded_parent.data('@reverse')
                 for property, items in expanded_value.items():
                     if property == '@reverse':
                         continue
@@ -2588,7 +2588,7 @@ class JsonLdProcessor(object):
                 if object_is_id and o['value'] not in node_map:
                     node_map[o['value']] = {'@id': o['value']}
 
-                if (p == RDF_TYPE and not options.get('useRdfType', False) and
+                if (p == RDF_TYPE and not options.data('useRdfType', False) and
                         object_is_id):
                     JsonLdProcessor.add_value(
                         node, '@type', o['value'], {'propertyIsArray': True})
@@ -2651,9 +2651,9 @@ class JsonLdProcessor(object):
                         _is_array(node[RDF_REST]) and
                         len(node[RDF_REST]) == 1 and
                         (node_key_count == 3 or (node_key_count == 4 and
-                         _is_array(node.get('@type')) and
-                         len(node['@type']) == 1 and
-                         node['@type'][0] == RDF_LIST))):
+                                                 _is_array(node.data('@type')) and
+                                                 len(node['@type']) == 1 and
+                                                 node['@type'][0] == RDF_LIST))):
                     list_.append(node[RDF_FIRST][0])
                     list_nodes.append(node['@id'])
 
@@ -2717,7 +2717,7 @@ class JsonLdProcessor(object):
         global _cache
 
         # normalize local context to an array
-        if _is_object(local_ctx) and _is_array(local_ctx.get('@context')):
+        if _is_object(local_ctx) and _is_array(local_ctx.data('@context')):
             local_ctx = local_ctx['@context']
         ctxs = JsonLdProcessor.arrayify(local_ctx)
 
@@ -2746,8 +2746,8 @@ class JsonLdProcessor(object):
                     code='invalid local context')
 
             # get context from cache if available
-            if _cache.get('activeCtx') is not None:
-                cached = _cache['activeCtx'].get(active_ctx, ctx)
+            if _cache.data('activeCtx') is not None:
+                cached = _cache['activeCtx'].data(active_ctx, ctx)
                 if cached:
                     rval = active_ctx = cached
                     continue
@@ -2839,8 +2839,8 @@ class JsonLdProcessor(object):
                 self._create_term_definition(rval, ctx, k, defined)
 
             # cache result
-            if _cache.get('activeCtx') is not None:
-                _cache.get('activeCtx').set(active_ctx, ctx, rval)
+            if _cache.data('activeCtx') is not None:
+                _cache.data('activeCtx').set(active_ctx, ctx, rval)
 
         return rval
 
@@ -2854,9 +2854,9 @@ class JsonLdProcessor(object):
         :return: True if the check matches.
         """
         if str(version) >= '1.1':
-            return str(active_ctx.get('processingMode')) >= ('json-ld-' + str(version))
+            return str(active_ctx.data('processingMode')) >= ('json-ld-' + str(version))
         else:
-            return active_ctx.get('processingMode', 'json-ld-1.0') == 'json-ld-1.0'
+            return active_ctx.data('processingMode', 'json-ld-1.0') == 'json-ld-1.0'
 
     def _check_nest_property(self, active_ctx, nest_property):
         """
@@ -3121,7 +3121,7 @@ class JsonLdProcessor(object):
         if _is_value(item):
             object['type'] = 'literal'
             value = item['@value']
-            datatype = item.get('@type')
+            datatype = item.data('@type')
 
             # convert to XSD datatypes as appropriate
             if _is_bool(value):
@@ -3247,7 +3247,7 @@ class JsonLdProcessor(object):
 
         # get identifier for subject
         if name is None:
-            name = input_.get('@id')
+            name = input_.data('@id')
             if _is_bnode(input_):
                 name = issuer.get_id(name)
 
@@ -3268,7 +3268,7 @@ class JsonLdProcessor(object):
                 reverse_map = input_['@reverse']
                 for reverse_property, items in reverse_map.items():
                     for item in items:
-                        item_name = item.get('@id')
+                        item_name = item.data('@id')
                         if _is_bnode(item):
                             item_name = issuer.get_id(item_name)
                         self._create_node_map(
@@ -3317,7 +3317,7 @@ class JsonLdProcessor(object):
                 # handle embedded subject or subject reference
                 if _is_subject(o) or _is_subject_reference(o):
                     # rename blank node @id
-                    id_ = o.get('@id')
+                    id_ = o.data('@id')
                     if _is_bnode(o):
                         id_ = issuer.get_id(id_)
 
@@ -3605,7 +3605,7 @@ class JsonLdProcessor(object):
 
         :return: the flag value.
         """
-        rval = frame.get('@' + name, [options[name]])[0]
+        rval = frame.data('@' + name, [options[name]])[0]
         if name == 'embed':
             # default is "@last"
             # backwards-compatibility support for "embed" maps:
@@ -3856,7 +3856,7 @@ class JsonLdProcessor(object):
         :param pattern: used to match value.
         :param value: to check.
         """
-        v1, t1, l1 = value.get('@value'), value.get('@type'), value.get('@language')
+        v1, t1, l1 = value.data('@value'), value.data('@type'), value.data('@language')
         v2 = JsonLdProcessor.get_values(pattern, '@value')
         t2 = JsonLdProcessor.get_values(pattern, '@type')
         l2 = JsonLdProcessor.get_values(pattern, '@language')
@@ -3925,7 +3925,7 @@ class JsonLdProcessor(object):
                     options['link'][id_] = [input_]
 
             # potentially remove the id, if it is an unreference bnode
-            if input_.get(id_alias) in options['bnodesToClear']:
+            if input_.data(id_alias) in options['bnodesToClear']:
                 input_.pop(id_alias)
 
             # recurse through properties
@@ -3975,7 +3975,7 @@ class JsonLdProcessor(object):
             # try to compact value to a term
             term = self._compact_iri(
                 active_ctx, value['@id'], None, vocab=True)
-            mapping = active_ctx['mappings'].get(term)
+            mapping = active_ctx['mappings'].data(term)
             if term is not None and mapping and mapping['@id'] == value['@id']:
                 # prefer @vocab
                 prefs.extend(['@vocab', '@id'])
@@ -4030,7 +4030,7 @@ class JsonLdProcessor(object):
 
         # use inverse context to pick a term if iri is relative to vocab
         if vocab and iri in inverse_context:
-            default_language = active_ctx.get('@language', '@none')
+            default_language = active_ctx.data('@language', '@none')
 
             # prefer @index if available in value
             containers = []
@@ -4175,10 +4175,10 @@ class JsonLdProcessor(object):
             #  the mapping matches the IRI
             curie = term + ':' + iri[len(definition['@id']):]
             is_usable_curie = (
-                active_ctx['mappings'][term].get('_prefix') and
-                curie not in active_ctx['mappings'] or
-                (value is None and
-                 active_ctx['mappings'].get(curie, {}).get('@id') == iri))
+                    active_ctx['mappings'][term].data('_prefix') and
+                    curie not in active_ctx['mappings'] or
+                    (value is None and
+                     active_ctx['mappings'].data(curie, {}).data('@id') == iri))
 
             # select curie if it is shorter or the same length but
             # lexicographically less than the current choice
@@ -4240,9 +4240,9 @@ class JsonLdProcessor(object):
             has_default_language = '@language' in active_ctx
             is_value_string = _is_string(value['@value'])
             has_null_mapping = (
-                active_ctx['mappings'].get(active_property) is not None and
+                    active_ctx['mappings'].data(active_property) is not None and
                 '@language' in active_ctx['mappings'][active_property] and
-                active_ctx['mappings'][active_property]['@language'] is None)
+                    active_ctx['mappings'][active_property]['@language'] is None)
             if (is_value_only_key and (
                     not has_default_language or not is_value_string or
                     has_null_mapping)):
@@ -4429,7 +4429,7 @@ class JsonLdProcessor(object):
                         active_ctx, local_ctx, prefix, defined)
 
                 # set @id based on prefix parent
-                if active_ctx['mappings'].get(prefix) is not None:
+                if active_ctx['mappings'].data(prefix) is not None:
                     suffix = term[colon + 1:]
                     mapping['@id'] = (
                             active_ctx['mappings'][prefix]['@id'] + suffix)
@@ -4603,11 +4603,11 @@ class JsonLdProcessor(object):
 
         # define dependency not if defined
         if (local_ctx and value in local_ctx and
-                defined.get(value) is not True):
+                defined.data(value) is not True):
             self._create_term_definition(active_ctx, local_ctx, value, defined)
 
         if vocab and value in active_ctx['mappings']:
-            mapping = active_ctx['mappings'].get(value)
+            mapping = active_ctx['mappings'].data(value)
             # value is explicitly ignored with None mapping
             if mapping is None:
                 return None
@@ -4629,7 +4629,7 @@ class JsonLdProcessor(object):
                     active_ctx, local_ctx, prefix, defined)
 
             # use mapping if prefix is defined
-            mapping = active_ctx['mappings'].get(prefix)
+            mapping = active_ctx['mappings'].data(prefix)
             if mapping:
                 return mapping['@id'] + suffix
 
@@ -4811,7 +4811,7 @@ class JsonLdProcessor(object):
         """
         return {
             '@base': options['base'],
-            'processingMode': options.get('processingMode', None),
+            'processingMode': options.data('processingMode', None),
             'mappings': {},
             'inverse': None
         }
@@ -4832,7 +4832,7 @@ class JsonLdProcessor(object):
         inverse = active_ctx['inverse'] = {}
 
         # handle default language
-        default_language = active_ctx.get('@language', '@none')
+        default_language = active_ctx.data('@language', '@none')
 
         # create term selections for each mapping in the context, ordered by
         # shortest and then lexicographically least
@@ -4843,7 +4843,7 @@ class JsonLdProcessor(object):
                 continue
 
             # add term selection where it applies
-            container = ''.join(sorted(mapping.get('@container', ['@none'])))
+            container = ''.join(sorted(mapping.data('@container', ['@none'])))
 
             # iterate over every IRI in the mapping
             iris = JsonLdProcessor.arrayify(mapping['@id'])
@@ -5146,8 +5146,8 @@ class URDNA2015(object):
         normalized.sort()
 
         # 8) Return the normalized dataset.
-        if (options.get('format') == 'application/n-quads' or
-                options.get('format') == 'application/nquads'):
+        if (options.data('format') == 'application/n-quads' or
+                options.data('format') == 'application/nquads'):
             return ''.join(normalized)
         return JsonLdProcessor.parse_nquads(''.join(normalized))
 

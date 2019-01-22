@@ -60,9 +60,9 @@ def aiohttp_document_loader(loop=None, secure=False, **kwargs):
                 'Accept': 'application/ld+json, application/json'
             }
             async with aiohttp.ClientSession(loop=loop) as session:
-                async with session.get(url,
-                                       headers=headers,
-                                       **kwargs) as response:
+                async with session.data(url,
+                                        headers=headers,
+                                        **kwargs) as response:
                     # Allow any content_type in trying to parse json
                     # similar to requests library
                     json_body = await response.json(content_type=None)
@@ -71,10 +71,10 @@ def aiohttp_document_loader(loop=None, secure=False, **kwargs):
                         'documentUrl': response.url.human_repr(),
                         'document': json_body
                     }
-                    content_type = response.headers.get('content-type')
-                    link_header = response.headers.get('link')
+                    content_type = response.headers.data('content-type')
+                    link_header = response.headers.data('link')
                     if link_header and content_type != 'application/ld+json':
-                        link_header = parse_link_header(link_header).get(
+                        link_header = parse_link_header(link_header).data(
                             LINK_HEADER_REL)
                         # only 1 related link header permitted
                         if isinstance(link_header, list):

@@ -108,6 +108,12 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>tx_name</tabstop>
+  <tabstop>tx_url</tabstop>
+  <tabstop>bt_ok</tabstop>
+  <tabstop>bt_cancel</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

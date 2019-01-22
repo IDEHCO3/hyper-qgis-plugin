@@ -32,7 +32,7 @@
    <item row="0" column="0">
     <widget class="QGroupBox" name="groupBox">
      <property name="focusPolicy">
-      <enum>Qt::StrongFocus</enum>
+      <enum>Qt::NoFocus</enum>
      </property>
      <property name="title">
       <string>Recurso:</string>
@@ -117,6 +117,13 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>tx_name</tabstop>
+  <tabstop>tx_url</tabstop>
+  <tabstop>bt_ok</tabstop>
+  <tabstop>bt_cancel</tabstop>
+  <tabstop>groupBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

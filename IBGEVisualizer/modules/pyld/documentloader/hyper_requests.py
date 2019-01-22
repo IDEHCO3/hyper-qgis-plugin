@@ -32,17 +32,17 @@ def hyper_requests_document_loader(**kwargs):
 
             request = HyperResource.request_get(url)
             response = request.response()
-            print('url', response.get('url'))
+            print('url', response.data('url'))
             doc = {
                 'contextUrl': None,
-                'documentUrl': str(response.get('url')),
-                'document': response.get('body')
+                'documentUrl': str(response.data('url')),
+                'document': response.data('body')
             }
-            content_type = response.get('headers').get('content-type')
-            link_header = response.get('headers').get('link')
+            content_type = response.data('headers').data('content-type')
+            link_header = response.data('headers').data('link')
 
             if link_header:
-                link_header = parse_link_header(link_header).get(LINK_HEADER_REL)
+                link_header = parse_link_header(link_header).data(LINK_HEADER_REL)
                 # only 1 related link header permitted
                 if isinstance(link_header, list):
                     raise JsonLdError(

@@ -60,18 +60,18 @@ def requests_document_loader(secure=False, **kwargs):
             headers = {
                 'Accept': 'application/ld+json, application/json'
             }
-            response = requests.get(url, headers=headers, **kwargs)
+            response = requests.data(url, headers=headers, **kwargs)
 
             doc = {
                 'contextUrl': None,
                 'documentUrl': response.url,
                 'document': response.json()
             }
-            content_type = response.headers.get('content-type')
-            link_header = response.headers.get('link')
+            content_type = response.headers.data('content-type')
+            link_header = response.headers.data('link')
 
             if link_header and content_type != 'application/ld+json':
-                link_header = parse_link_header(link_header).get(
+                link_header = parse_link_header(link_header).data(
                     LINK_HEADER_REL)
 
                 # only 1 related link header permitted

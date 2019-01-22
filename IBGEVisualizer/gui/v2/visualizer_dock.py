@@ -5,7 +5,7 @@ import os
 
 from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal, Qt, QTimer
-from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortFilterProxyModel
+from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortFilterProxyModel, QBrush, QColor
 
 from IBGEVisualizer import HyperResource, Plugin
 from IBGEVisualizer.Utils import Config, Layer, MessageBox
@@ -15,6 +15,7 @@ from IBGEVisualizer.gui.v2.dialog_add_resource import DialogAddResource
 from IBGEVisualizer.gui.v2.dialog_edit_resource import DialogEditResource
 
 
+YELLOW = QBrush(QColor(255, 252, 226))
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'visualizer_dock.ui'))
 
@@ -46,7 +47,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         self.list_resource.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_resource.customContextMenuRequested.connect(self.open_context_menu)
-        self.list_resource.doubleClicked.connect(self._list_resource_doubleClicked)
+        #self.list_resource.doubleClicked.connect(self._list_resource_doubleClicked)
 
         #self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
 
@@ -108,15 +109,13 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         if not url: return
         if not HyperResource.url_exists(url): return
 
-        from PyQt4.QtGui import QBrush, QColor
-
         is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
         if is_entry_point:
             parent_item = self.list_resource.add_entry_point(name, url)
-            parent_item.setBackground(0, QBrush(QColor(255, 252, 226)))
+            parent_item.setBackground(0, YELLOW)
         else:
             item = self.list_resource.add_url(name, url)
-            item.setBackground(0, QBrush(QColor(255, 252, 226)))
+            item.setBackground(0, YELLOW)
 
     def add_resource(self, name, url):
         self.load_resource(name, url)
@@ -128,8 +127,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         if not model:
             return
 
-        for name, value in model.items():
-            self.load_resource(name, value)
+        for name, iri in model.items():
+            self.load_resource(name, iri)
 
 
     def open_context_menu(self, position):

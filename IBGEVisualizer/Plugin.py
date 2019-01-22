@@ -20,13 +20,13 @@ class GeoJsonFeature:
         if 'type' in json_obj and json_obj['type'] != 'Feature':
             raise ValueError('This is not a GeoJSON feature object.')
 
-        self.geometry = json_obj.get('geometry') or None
+        self.geometry = json_obj.data('geometry') or None
         self.geom_type = self.geometry.get('type').lower() if self.geometry else None
-        self.properties = json_obj.get('properties') and json_obj['properties'].values() or None
-        self.keys = json_obj.get('properties') and json_obj['properties'].keys() or None
+        self.properties = json_obj.data('properties') and json_obj['properties'].values() or None
+        self.keys = json_obj.data('properties') and json_obj['properties'].keys() or None
 
-        self.id = json_obj.get('id') or json_obj.get('Id') or json_obj.get('ID') or \
-                  json_obj.get('properties').get('id') or json_obj.get('properties').get('Id') or json_obj.get('properties').get('ID') or None
+        self.id = json_obj.data('id') or json_obj.data('Id') or json_obj.data('ID') or \
+                  json_obj.data('properties').data('id') or json_obj.data('properties').data('Id') or json_obj.data('properties').data('ID') or None
 
         self.fields = fields_info
 
@@ -42,10 +42,10 @@ class GeoJsonFeature:
 
         if self.fields is not None:
             for field_name in self.keys:
-                type_ = self.fields.get(field_name)
+                type_ = self.fields.data(field_name)
 
                 if type_:
-                    field_type = _convert_to_QVariant(type_.get('@type'))
+                    field_type = _convert_to_QVariant(type_.data('@type'))
                     result.append(QgsField(field_name, field_type))
                 else:
                     Utils.MessageBox.critical(u"Arquivo de contexto não é compatível com os dados deste recurso", u'')
@@ -104,11 +104,11 @@ class GeoJsonGeometry:
     accepted_geometries = ['point', 'multipoint', 'linestring', 'multilinestring', 'polygon', 'multipolygon']
 
     def __init__(self, json_obj, fields_info=None):
-        if json_obj.get('type').lower() not in self.accepted_geometries:
+        if json_obj.data('type').lower() not in self.accepted_geometries:
             raise ValueError('Not a GeoJson Geometry json object')
 
         self.geometry = Geometry.convert_to_qgs_geometry(json_obj)
-        self.geom_type = json_obj.get('type') or 'polygon'
+        self.geom_type = json_obj.data('type') or 'polygon'
 
 
 class GeometryCollection:
@@ -152,7 +152,7 @@ class SimpleJSON(object):
 
         if self.fields is not None:
             for field_name in self.keys:
-                type_ = self.fields[field_name].get('@type')
+                type_ = self.fields[field_name].data('@type')
                 qvariant_type = _convert_to_QVariant(type_)
 
                 result.append(QgsField(field_name, qvariant_type))
@@ -201,8 +201,8 @@ def _convert_to_QVariant(var_type):
     return switch.get(var_type) or QVariant.String
 
 def create_layer(name, response):
-    json_as_dict = json.loads(response.get('body'))
-    fields_info = response.get('fields')
+    json_as_dict = json.loads(response.data('body'))
+    fields_info = response.data('fields')
 
     collection = extract_json(json_as_dict, fields_info)
 
@@ -258,6 +258,6 @@ def extract_json(json_object, fields_info=None):
             'MultiPolygon': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
         })
 
-    callback = switch.get(json_object.get('type')) or (lambda json_obj: SimpleJSONCollection([json_obj], fields_info))
+    callback = switch.get(json_object.data('type')) or (lambda json_obj: SimpleJSONCollection([json_obj], fields_info))
 
     return callback(json_object)
