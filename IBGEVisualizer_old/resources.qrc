@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/plugins/IBGEVisualizer" >
+        <file>icon.png</file>
+        <file>flag.png</file>
+        <file>plus.png</file>
+        <file>minus.png</file>
+        <file>loading_crop_scale32.gif</file>
+        <file>loading_crop_scale16.gif</file>
+        <file>icon-entry-point.png</file>
+    </qresource>
+</RCC>

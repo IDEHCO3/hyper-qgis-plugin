@@ -22,13 +22,14 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
     # 1, nome da layer, 2, url da layer
     load_url_command = pyqtSignal(unicode, unicode)
 
-    def __init__(self, resource):
+    def __init__(self, resource_name, resource_url):
         super(DialogConstructUrl, self).__init__()
         self.setupUi(self)
 
-        self.resource = resource
+        self.resource_name = resource_name
+        self.resource_url = resource_url
 
-        self.setWindowTitle(u'Operações da camada: ' + self.resource.name + ' - ' + self.resource.iri)
+        self.setWindowTitle(u'Operações da camada: ' + self.resource_name + ' - ' + self.resource_url)
 
         self._on_load_commands()
 
@@ -39,10 +40,11 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         self.list_attributes.itemClicked.connect(self._list_attributes_itemClicked)
         self.bt_load_url.clicked.connect(self._bt_load_url_clicked)
 
-        self.url_builder.set_url(self.resource.iri)
+        self.url_builder.set_url(self.resource_url)
 
     def _on_load_commands(self):
-        self.create_operations_list()
+        operations = self.read_operations_from_url(self.resource_url)
+        self.create_operations_list(operations)
 
     def _list_attributes_itemClicked(self, item):
         if item.type_ == 'supported_property':
@@ -72,16 +74,16 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
     def _load_property_list_frame(self):
         property_ = self.list_attributes.currentItem().name
-        widget = FramePropertyList(self.resource.iri, property_)
+        widget = FramePropertyList(self.resource_url, property_)
         self._insert_in_operations_layout(widget)
 
     def _load_filter_expression_frame(self):
-        widget = FrameFilterExpression(self.resource.iri)
+        widget = FrameFilterExpression(self.resource_url)
         self._insert_in_operations_layout(widget)
         widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_item_list_frame(self):
-        widget = FrameItemListExpression(self.resource.iri)
+        widget = FrameItemListExpression(self.resource_url)
         self._insert_in_operations_layout(widget)
 
     def _load_geometry_frame(self):
@@ -111,15 +113,40 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
         return layout
 
-    def create_operations_list(self):
-        properties = self.resource.properties()
-        operations = self.resource.operations()
+    def read_operations_from_url(self, url):
+        if not url:
+            return
 
-        if properties:
-            self.generate_property_items_from_options(properties)
+        exists, resp = HyperResource.url_exists(url)
+        if not exists:
+            Utils.Logging.info(
+                u'Não foi possível localizar url: {} {}'.format(self.resource_url, resp),
+                u'IBGEVisualizer'
+            )
+            Utils.MessageBox.info(
+                u'Não foi possível localizar url: {}'.format(self.resource_url),
+                u'IBGEVisualizer'
+            )
+            return
 
-        if operations:
-            self.generate_operation_items_from_options(operations)
+        reply = HyperResource.request_options(url)
+        options_response = reply.response()
+
+        return HyperResource.translate_options(options_response)
+
+    def create_operations_list(self, operations):
+        if not operations:
+            return
+
+        supported_properties = operations.get('supported_properties')
+        supported_operations = operations.get('supported_operations')
+
+        if supported_properties:
+            self.generate_property_items_from_options(supported_properties)
+
+        if supported_operations:
+            self.generate_operation_items_from_options(supported_operations)
+
 
     def generate_property_items_from_options(self, options_properties):
         self._generate_items_from_options(

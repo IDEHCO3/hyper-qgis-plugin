@@ -9,8 +9,6 @@ import json
 import Utils
 import request
 
-from PyQt4.QtCore import pyqtSignal, QObject
-
 
 def GET(url):
     return request_get(url)
@@ -35,7 +33,7 @@ def request_head(url):
 
 
 def url_exists(url):
-    reply = HEAD(url)
+    reply = request_head(url)
     response = reply.response()
     return 200 <= response.get('status_code') < 300, response
 
@@ -127,8 +125,28 @@ def _get_entry_point_from_link(link_tab):
 
     return entry_point
 
+# Hyper Object é um objeto que reune o output do get e do options
+def create_hyper_object(get_reply, options_reply, url=''):
+    return HyperObject(translate_get(get_reply), translate_options(options_reply, url))
+
+
+class HyperObject(object):
+    def __init__(self, get_obj, options_obj=None):
+        self.get_obj = get_obj
+        self.options_obj = options_obj
+
+        self.request_header = get_obj.get('headers')
+        self.resource = get_obj.get('body')
+
+        if options_obj is not None:
+            self.url = options_obj.get('url')
+            self.fields = options_obj.get('fields')
+            self.supported_properties = options_obj.get('supported_properties')
+            self.supported_operations = options_obj.get('supported_operations')
+
+
 class SupportedProperty(object):
-    def __init__(self, at_context, **data):
+    def __init__(self, **data):
         self.name = data.get('hydra:property') or data.get('name') or ''
         self.is_writeable = data.get('hydra:writeable') or data.get('is_writeable') or False
         self.is_readable = data.get('hydra:readable') or data.get('is_readable') or False
@@ -136,9 +154,6 @@ class SupportedProperty(object):
         self.is_unique = data.get('isUnique') or data.get('is_unique') or False
         self.is_identifier = data.get('isIdentifier') or data.get('is_identifier') or False
         self.is_external = data.get('isExternal') or data.get('is_external') or False
-
-        term_definition = at_context.get(self.name) or {}
-        self.property_type = term_definition.get('@type')
 
     def __str__(self):
         return u'<SupportedProperty: "name":{}, "is_writeable":{}, "is_readable":{}, "is_required":{}, "is_unique": {}, "is_identifier": {}, "is_external": {}>' \
@@ -242,29 +257,9 @@ METADATA_LINK = 'metadata'
 HYDRA_VOCAB = 'hydra:'
 SUPPORTED_OPERATION_VOCAB = HYDRA_VOCAB + 'supportedOperations'
 SUPPORTED_PROPERTY_VOCAB = HYDRA_VOCAB + 'supportedProperties'
-PROPERTY_VOCAB = HYDRA_VOCAB + 'property'
-OPERATION_VOCAB = HYDRA_VOCAB + 'operation'
 
-COLLECTION_TYPE_VOCAB = HYDRA_VOCAB + "Collection"
-FEATURE_COLLECTION_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#FeatureCollection"
-FEATURE_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Feature"
-POINT_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Point"
-MULTIPOINT_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiPoint"
-LINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#LineString"
-MULTILINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiLineString"
-POLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Polygon"
-MULTIPOLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiPolygon"
-GEOMETRY_COLLECTION_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#GeometryCollection"
-
-class Resource(QObject):
-    request_started = pyqtSignal()
-    request_progress = pyqtSignal(unicode, unicode)
-    request_error = pyqtSignal(unicode)
-    request_finished = pyqtSignal()
-
+class Resource:
     def __init__(self, iri, name=''):
-        super(Resource, self).__init__()
-
         self._resource_name = None
         self._resource_iri = None
 
@@ -308,9 +303,8 @@ class Resource(QObject):
     def data(self):
         if self._get is None:
             self._get = GetReader(self.iri)
-            self._connect_signals(self._get)
 
-        return self._get.data()
+        return self._get.data
 
     def options(self):
         if self._options is None:
@@ -318,26 +312,8 @@ class Resource(QObject):
 
         return self._options
 
-    def properties(self):
-        return self.options().properties()
-
-    def operations(self):
-        return self.options().operations()
-
-    def as_json(self):
-        return self._get.as_json()
-
-    def resource_type(self):
-        return self.options().at_type()
-
     def is_entry_point(self):
         return self.header().is_entry_point()
-
-    def _connect_signals(self, obj):
-        obj.request_started.connect(self.request_started)
-        obj.request_progress.connect(self.request_progress)
-        obj.request_error.connect(self.request_error)
-        obj.request_finished.connect(self.request_finished)
 
 
 class HeaderReader:
@@ -476,35 +452,19 @@ class HeaderReader:
         return rval
 
 
-class GetReader(QObject):
-    request_started = pyqtSignal()
-    request_progress = pyqtSignal(unicode, unicode)
-    request_error = pyqtSignal(unicode)
-    request_finished = pyqtSignal()
-
+class GetReader:
     def __init__(self, iri):
-        super(GetReader, self).__init__()
-
         if not iri:
             return
 
         self.iri = iri
+
         self.__data = None
 
-        self._reply = GET(iri)
-        self._connect_signals(self._reply)
-
-        self._response = None
-
-    def response(self):
-        if self._response is None:
-            self._response = self._reply.response()
-
-        return self._response
-
+    @property
     def data(self):
         if not self.__data:
-            self.__data = self.response()
+            self.__data = self._response(self.iri)
 
             if 200 > self.__data['status_code'] >= 300:
                 raise Exception(u'Acesso à {} retornou {} {}'.format(
@@ -512,14 +472,16 @@ class GetReader(QObject):
 
         return self.__data.get('body')
 
-    def as_json(self):
-        return json.loads(self.data())
+    @data.setter
+    def data(self, val):
+        pass
 
-    def _connect_signals(self, obj):
-        obj.requestStarted.connect(self.request_started)
-        obj.downloadProgress.connect(self.request_progress)
-        obj.error.connect(self.request_error)
-        obj.finished.connect(self.request_finished)
+    def _response(self, iri):
+        reply = request_get(iri)
+        response = reply.response()
+
+        return response
+        #return get
 
 class OptionsReader:
     def __init__(self, iri):
@@ -528,14 +490,11 @@ class OptionsReader:
 
         self.iri = iri
 
-        self._reply = request_options(iri)
-        self._response = None
-
         self._operations = None
         self._properties = None
 
     def _parse(self, callback):
-        response = self.response()
+        response = self._response(self.iri)
 
         invalid_status_code = 200 > response['status_code'] >= 300
         if invalid_status_code:
@@ -549,12 +508,6 @@ class OptionsReader:
 
         return callback(json_opt)
 
-    def response(self):
-        if self._response is None:
-            self._response = self._reply.response()
-
-        return self._response
-
     def operations(self):
         if self._operations is None:
             self._operations = self._parse(self._extract_supported_operations)
@@ -566,31 +519,6 @@ class OptionsReader:
             self._properties = self._parse(self._extract_supported_properties)
 
         return self._properties
-
-    def get_property(self, name):
-        for property_ in self.properties():
-            if property_.name == name:
-                return property_
-
-    def get_operation(self, name):
-        for operation in self.operations():
-            if operation.name == name:
-                return operation
-
-    def at_context(self):
-        options_body = json.loads(self.response().get('body'))
-
-        return options_body.get('@context')
-
-    def at_id(self):
-        options_body = json.loads(self.response().get('body'))
-
-        return options_body.get('@id')
-
-    def at_type(self):
-        options_body = json.loads(self.response().get('body'))
-
-        return options_body.get('@type')
 
     @staticmethod
     def _extract_supported_operations(json_options):
@@ -609,13 +537,22 @@ class OptionsReader:
         if SUPPORTED_PROPERTY_VOCAB not in json_options:
             return {}
 
-        json_supported_prop = json_options.get(SUPPORTED_PROPERTY_VOCAB)
-        at_context = json_options.get('@context')
+        json_supported_prop = json_options[SUPPORTED_PROPERTY_VOCAB]
 
-        return_array = [SupportedProperty(at_context, **elem) for elem in json_supported_prop]
+        return_array = [SupportedProperty(**elem) for elem in json_supported_prop]
         return_array.sort(key=lambda prop: prop.name)
 
         return return_array
+
+    def _response(self, iri):
+        reply = request_options(iri)
+        response = reply.response()
+
+        return response
+        #return get
+
+class ContextReader:
+    pass
 
 
 from IBGEVisualizer.modules.pyld import jsonld

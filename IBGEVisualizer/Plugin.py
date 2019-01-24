@@ -1,5 +1,6 @@
 
-# -*- coding: utf-8 -*-
+# coding: utf-8
+
 import json
 
 from qgis.core import *
@@ -9,29 +10,28 @@ import Geometry, Utils
 
 from layers.VectorLayer import VectorLayer
 
+from IBGEVisualizer.HyperResource import COLLECTION_TYPE_VOCAB, FEATURE_COLLECTION_TYPE_VOCAB, FEATURE_TYPE_VOCAB, \
+    POINT_TYPE_VOCAB, MULTIPOINT_TYPE_VOCAB, LINESTRING_TYPE_VOCAB, MULTILINESTRING_TYPE_VOCAB, POLYGON_TYPE_VOCAB, \
+    MULTIPOLYGON_TYPE_VOCAB, GEOMETRY_COLLECTION_TYPE_VOCAB
+
 
 """
-    This script takes care of creating layers in QGIS 
+    This script that create layers in QGIS 
 """
-
 
 class GeoJsonFeature:
-    def __init__(self, json_obj, fields_info=None):
-        if 'type' in json_obj and json_obj['type'] != 'Feature':
-            raise ValueError('This is not a GeoJSON feature object.')
-
-        self.geometry = json_obj.data('geometry') or None
+    def __init__(self, json_data, resource_properties):
+        self.geometry = json_data.get('geometry') or None
         self.geom_type = self.geometry.get('type').lower() if self.geometry else None
-        self.properties = json_obj.data('properties') and json_obj['properties'].values() or None
-        self.keys = json_obj.data('properties') and json_obj['properties'].keys() or None
+        self.properties = json_data.get('properties') and json_data['properties'].values() or None
+        self.keys = json_data.get('properties') and json_data['properties'].keys() or None
 
-        self.id = json_obj.data('id') or json_obj.data('Id') or json_obj.data('ID') or \
-                  json_obj.data('properties').data('id') or json_obj.data('properties').data('Id') or json_obj.data('properties').data('ID') or None
+        self.id = json_data.get('id') or json_data.get('ID') or json_data.get('id_objeto') or None
 
-        self.fields = fields_info
+        self.supported_properties = resource_properties
 
     def get_qgs_geometry(self):
-        if self.geometry is None:
+        if not self.geometry:
             return QgsGeometry()
 
         return Geometry.convert_to_qgs_geometry(self.geometry)
@@ -40,17 +40,16 @@ class GeoJsonFeature:
         result = QgsFields()
         result.append(QgsField('feature_id', QVariant.Int))
 
-        if self.fields is not None:
+        if self.supported_properties:
             for field_name in self.keys:
-                type_ = self.fields.data(field_name)
+                prop = next(prop for prop in self.supported_properties if prop.name == field_name)
 
-                if type_:
-                    field_type = _convert_to_QVariant(type_.data('@type'))
+                if prop:
+                    field_type = _convert_to_QVariant(prop.property_type)
                     result.append(QgsField(field_name, field_type))
                 else:
-                    Utils.MessageBox.critical(u"Arquivo de contexto não é compatível com os dados deste recurso", u'')
+                    raise Exception(u"Arquivo de contexto não é compatível com os dados deste recurso", u'')
                     #raise ValueError(u"Arquivo de contexto não é compatível com os dados deste recurso")
-                    return
 
         else:
             for field_name in self.keys:
@@ -58,7 +57,7 @@ class GeoJsonFeature:
 
         return result
 
-    def to_qgs_feature(self):
+    def as_qgs_features(self):
         qgs_fields = self.get_qgs_fields()
         f = QgsFeature()
 
@@ -66,11 +65,11 @@ class GeoJsonFeature:
             f.setAttributes([self.id] + self.properties)
             f.setGeometry(self.get_qgs_geometry())
 
-        return f
+        return [f]
 
 
 class FeatureCollection:
-    def __init__(self, json_object, fields_info=None):
+    def __init__(self, resource):
         switch = {
             'point': 'point',
             'multipoint': 'point',
@@ -80,7 +79,7 @@ class FeatureCollection:
             'multipolygon': 'polygon'
         }
 
-        self.features = [GeoJsonFeature(f, fields_info) for f in json_object['features']]
+        self.features = [GeoJsonFeature(f, resource.properties()) for f in resource.as_json().get('features')]
         
         self.geom_type = switch.get(self.features[0].geom_type) or 'polygon'
 
@@ -91,11 +90,11 @@ class FeatureCollection:
 
         return []
 
-    def get_qgs_features(self):
+    def as_qgs_features(self):
         qgs_features = []
 
         for feature in self.features:
-            qgs_features.append(feature.to_qgs_feature())
+            qgs_features.append(next(iter(feature.as_qgs_features())))
 
         return qgs_features
 
@@ -103,23 +102,28 @@ class FeatureCollection:
 class GeoJsonGeometry:
     accepted_geometries = ['point', 'multipoint', 'linestring', 'multilinestring', 'polygon', 'multipolygon']
 
-    def __init__(self, json_obj, fields_info=None):
-        if json_obj.data('type').lower() not in self.accepted_geometries:
-            raise ValueError('Not a GeoJson Geometry json object')
+    def __init__(self, json_data):
+        self.geometry = Geometry.convert_to_qgs_geometry(json_data)
+        self.geom_type = json_data.get('type') or 'polygon'
 
-        self.geometry = Geometry.convert_to_qgs_geometry(json_obj)
-        self.geom_type = json_obj.data('type') or 'polygon'
+    def get_qgs_fields(self):
+        return QgsFields()
 
+    def as_qgs_features(self):
+        feature = QgsFeature()
+        feature.setGeometry(self.geometry)
+
+        return [feature]
 
 class GeometryCollection:
-    def __init__(self, json_obj):
-        self.geometries = [GeoJsonGeometry(g) for g in json_obj['geometries']]
+    def __init__(self, resource):
+        self.geometries = [GeoJsonGeometry(g) for g in resource.as_json().get('geometries')]
         self.geom_type = self.geometries[0].geom_type
 
     def get_qgs_fields(self):
         return QgsFields()
 
-    def get_qgs_features(self):
+    def as_qgs_features(self):
         qgs_features = []
 
         for geojson_geom in self.geometries:
@@ -132,60 +136,61 @@ class GeometryCollection:
 
 
 class SimpleJSON(object):
-    def __init__(self, json_obj, fields_info=None):
-        self.properties = {}
-        self.fields = fields_info
+    def __init__(self, json_obj, resource_properties):
+        self.fields = {}
+        self.supported_properties = resource_properties
 
         for k, v in json_obj.items():
-            if isinstance(v, (int, str, type(None), type(u''), float)):
-                self.properties.update({k: v})
+            if isinstance(v, (int, str, type(None), unicode, type(u''), float)):
+                self.fields.update({k: v})
 
             else:
                 Utils.Logging.info(u'{key} is {type} and not a primitive type and will not be included as property of this feature'.format(
                     key=k, type=type(v)
                 ), 'IBGEVisualizer')
 
-        self.keys = self.properties.keys()
+        self.keys = self.fields.keys()
 
     def get_qgs_fields(self):
         result = QgsFields()
 
-        if self.fields is not None:
+        if self.supported_properties:
             for field_name in self.keys:
-                type_ = self.fields[field_name].data('@type')
+                type_ = self.supported_properties[field_name].get('@type')
                 qvariant_type = _convert_to_QVariant(type_)
 
                 result.append(QgsField(field_name, qvariant_type))
         else:
-            fields = self.properties.keys()
+            fields = self.fields.keys()
             for field in fields:
                 result.append(QgsField(field, QVariant.String))
 
         return result
 
-    def to_qgs_feature(self):
+    def as_qgs_features(self):
         f = QgsFeature(self.get_qgs_fields())
 
-        f.setAttributes(self.properties.values())
+        f.setAttributes(self.fields.values())
 
-        return f
+        return [f]
 
 
 class SimpleJSONCollection:
-    def __init__(self, json_obj, fields_info=None):
-        self.properties = [SimpleJSON(s, fields_info) for s in json_obj]
+    def __init__(self, resource):
+        json_data = resource.as_json()
+        self.properties = [SimpleJSON(s, resource.properties()) for s in json_data]
 
     def get_qgs_fields(self):
-        if self.properties is not None and len(self.properties) > 0:
-            return self.properties[0].get_qgs_fields()
+        if not self.properties or len(self.properties) <= 0:
+            return []
 
-        return []
+        return self.properties[0].get_qgs_fields()
 
     def get_qgs_features(self):
         qgs_features = []
 
         for p in self.properties:
-            qgs_features.append(p.to_qgs_feature())
+            qgs_features.append(p.as_qgs_features())
 
         return qgs_features
 
@@ -200,64 +205,38 @@ def _convert_to_QVariant(var_type):
 
     return switch.get(var_type) or QVariant.String
 
-def create_layer(name, response):
-    json_as_dict = json.loads(response.data('body'))
-    fields_info = response.data('fields')
-
-    collection = extract_json(json_as_dict, fields_info)
+def create_layer(resource):
+    collection = _parse_to_layer(resource)
 
     geom_type = collection.geom_type if hasattr(collection, 'geom_type') else None
 
-    with VectorLayer(name, geom_type) as layer:
+    with VectorLayer(resource.name, geom_type) as layer:
         # Setting layer fields
         attributes = collection.get_qgs_fields()
         layer.add_fields(attributes)
 
         # Put features into layer
-        qgis_features = collection.get_qgs_features()
+        qgis_features = collection.as_qgs_features()
         layer.addFeatures(qgis_features, False)
 
     return layer
 
-def create_layer_with_hyper_object(name, obj):
-    json_as_dict = json.loads(obj.resource)
-    fields_info = obj.fields
+def _parse_to_layer(resource):
+    switch = {
+        COLLECTION_TYPE_VOCAB: lambda: SimpleJSONCollection(resource),
+        FEATURE_COLLECTION_TYPE_VOCAB: lambda: FeatureCollection(resource),
+        FEATURE_TYPE_VOCAB: lambda: GeoJsonFeature(resource.as_json(), resource.properties()),
+        GEOMETRY_COLLECTION_TYPE_VOCAB: lambda: GeometryCollection(resource),
 
-    collection = extract_json(json_as_dict, fields_info)
+        POINT_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        MULTIPOINT_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        LINESTRING_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        MULTILINESTRING_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        POLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        MULTIPOLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+    }
 
-    geom_type = collection.geom_type if hasattr(collection, 'geom_type') else None
+    at_type = resource.options().at_type()
+    callback = switch.get(at_type) or (lambda: SimpleJSONCollection(resource))
 
-    with VectorLayer(name, geom_type) as layer:
-        # Setting layer fields
-        attributes = collection.get_qgs_fields()
-        layer.add_fields(attributes)
-
-        # Put features into layer
-        qgis_features = collection.get_qgs_features()
-        layer.addFeatures(qgis_features, False)
-
-    return layer
-
-def extract_json(json_object, fields_info=None):
-    if isinstance(json_object, list):
-        return SimpleJSONCollection(json_object, fields_info)
-
-    switch = {}
-
-    if 'type' in json_object:
-        switch.update({
-            'FeatureCollection': lambda json_obj: FeatureCollection(json_obj, fields_info),
-            'Feature': lambda json_obj: FeatureCollection({'features': [json_obj]}, fields_info),
-            'GeometryCollection': lambda json_obj: GeometryCollection(json_obj),
-
-            'Point': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-            'MultiPoint': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-            'Linestring': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-            'MultiLinestring': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-            'Polygon': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-            'MultiPolygon': lambda json_obj: GeometryCollection({'geometries': [json_obj]}),
-        })
-
-    callback = switch.get(json_object.data('type')) or (lambda json_obj: SimpleJSONCollection([json_obj], fields_info))
-
-    return callback(json_object)
+    return callback()

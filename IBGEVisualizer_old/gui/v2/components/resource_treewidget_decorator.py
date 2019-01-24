@@ -3,7 +3,6 @@
 
 # Decorator class for Pyqt4.QtGui.QTreeWidget
 # Component in visualizer_docker
-import json
 from collections import OrderedDict
 
 from PyQt4.QtGui import QIcon
@@ -41,26 +40,21 @@ class ResourceTreeWidgetDecorator:
     def load_entry_point_children(self, item):
         pass
 
-    def add(self, resource):
-        if resource.is_entry_point():
-            item = self._add_entry_point(resource)
-
-        else:
-            item = self._add_simple_resource(resource)
-
-        return item
-
-    def _add_simple_resource(self, resource):
-        widget = ComponentFactory.create_list_resource_element(resource.name, resource.iri)
+    def add_url(self, name, url):
+        widget = ComponentFactory.create_list_resource_element(name, url)
         return self.append(widget)
 
-    def _add_entry_point(self, resource):
-        entry_point_list = json.loads(resource.data())
+    def add_entry_point(self, name, url):
+        reply = HyperResource.request_get(url)
+        response = reply.response()
+
+        import json
+        entry_point_list = json.loads(response.get('body'))
 
         order_alphabetically = lambda i: sorted(i, key=lambda t: t[0])
         entry_point_list = OrderedDict(order_alphabetically(entry_point_list.items()))
 
-        return self.append_entry_point(resource, entry_point_list)
+        return self.append_entry_point(name, url, entry_point_list)
 
     def append(self, item, parent=None):
         if parent:
@@ -73,10 +67,10 @@ class ResourceTreeWidgetDecorator:
     # Cria um entry point na lista de recursos
     # name: nome do entry point
     # elements: dict contendo chave:valor dos recursos do entry point
-    def append_entry_point(self, resource, entry_point_elements):
+    def append_entry_point(self, name, url, entry_point_elements):
         create_item = ComponentFactory.create_list_resource_element
 
-        parent_item = create_item(resource.name, resource.iri)
+        parent_item = create_item(name, url)
         entry_point_icon = QIcon(':/plugins/IBGEVisualizer/icon-entry-point.png')
         parent_item.setIcon(0, entry_point_icon)
 

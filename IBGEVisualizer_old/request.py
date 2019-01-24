@@ -15,7 +15,7 @@
 from PyQt4.QtCore import QObject, QUrl, QEventLoop, pyqtSignal
 from PyQt4.QtNetwork import QNetworkRequest, QNetworkAccessManager
 
-# Esta class serve como proxy entre QNetworkReply e o plugin.
+# Esta class serve como proxy entre QNetworkReply e o sistema.
 # Nela há um tratamento melhorado do output de QNetworkReply
 class Reply(QObject):
     requestStarted = pyqtSignal()

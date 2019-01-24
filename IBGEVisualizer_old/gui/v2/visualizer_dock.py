@@ -8,7 +8,6 @@ from PyQt4.QtCore import pyqtSignal, Qt, QTimer
 from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortFilterProxyModel, QBrush, QColor
 
 from IBGEVisualizer import HyperResource, Plugin
-from IBGEVisualizer.model import ResourceManager
 from IBGEVisualizer.Utils import Config, Layer, MessageBox
 from IBGEVisualizer.gui.v2.components.resource_treewidget_decorator import ResourceTreeWidgetDecorator
 from IBGEVisualizer.gui.v2.dialog_construct_url import DialogConstructUrl
@@ -48,7 +47,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         self.list_resource.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_resource.customContextMenuRequested.connect(self.open_context_menu)
-        self.list_resource.itemDoubleClicked.connect(self._list_resource_doubleClicked)
+        #self.list_resource.doubleClicked.connect(self._list_resource_doubleClicked)
 
         #self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
 
@@ -64,21 +63,24 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             self.add_resource(name, url)
 
 
-    def _list_resource_doubleClicked(self, item):
-        name = item.text(0)
-        url = item.text(1)
+    def _list_resource_doubleClicked(self, index):
+        if index and index.isValid():
+            item = self.list_resource.itemFromIndex(index)
 
-        item_has_children = item.childCount() > 0
-        if item_has_children:
-            return
+            name = item.text(0)
+            url = item.text(1)
 
-        # Verifica se é um entrypoint com layers ainda não carregadas
-        # url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
-        # if url_is_entry_point:
-        #     self.add_entry_point_to_resources(name, url)
-        #     return
+            item_has_children = item.childCount() > 0
+            if item_has_children:
+                return
 
-        self.open_operations_editor(name, url)
+            # Verifica se é um entrypoint com layers ainda não carregadas
+            # url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+            # if url_is_entry_point:
+            #     self.add_entry_point_to_resources(name, url)
+            #     return
+
+            self.open_operations_editor(name, url)
 
     def _bt_add_resource_clicked(self):
         self.open_add_resource_dialog()
@@ -103,13 +105,20 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
                 memorized_urls.pop(item_name)
                 Config.update_dict('memo_urls', memorized_urls)
 
-    def load_resource(self, resource):
-        parent_item = self.list_resource.add(resource)
-        parent_item.setBackground(0, YELLOW)
+    def load_resource(self, name, url):
+        if not url: return
+        if not HyperResource.url_exists(url): return
+
+        is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
+        if is_entry_point:
+            parent_item = self.list_resource.add_entry_point(name, url)
+            parent_item.setBackground(0, YELLOW)
+        else:
+            item = self.list_resource.add_url(name, url)
+            item.setBackground(0, YELLOW)
 
     def add_resource(self, name, url):
-        resource = ResourceManager.load(url, name)
-        self.load_resource(resource)
+        self.load_resource(name, url)
 
         Config.set('memo_urls', {name: url})
 
@@ -119,14 +128,11 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             return
 
         for name, iri in model.items():
-            resource = ResourceManager.load(iri, name)
-            self.load_resource(resource)
-            #self.load_resource(name, iri)
+            self.load_resource(name, iri)
 
 
     def open_context_menu(self, position):
         item = self.list_resource.itemAt(position)
-        resource = ResourceManager.load(item.url(), item.name())
         if not item:
             return
 
@@ -136,7 +142,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         # Load layers action
         action_open_layer = QAction(self.tr(u'Carregar camada'), None)
-        action_open_layer.triggered.connect(lambda: self._load_layer_on_qgis(resource))
+        action_open_layer.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
         menu.addAction(action_open_layer) if is_tree_leaf else None
 
         # Load layers as...
@@ -167,10 +173,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         return dialog_edit_resource
 
     def open_operations_editor(self, name, url):
-        resource = ResourceManager.load(url, name)
-
-        dialog_construct_url = DialogConstructUrl(resource)
-        dialog_construct_url.load_url_command.connect(self._load_layer_from_iri)
+        dialog_construct_url = DialogConstructUrl(name, url)
+        dialog_construct_url.load_url_command.connect(self._load_layer_from_url)
         dialog_construct_url.exec_()
 
         return dialog_construct_url
@@ -194,27 +198,23 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         tree_item.setText(0, new_name)
         tree_item.setText(1, new_url)
 
-    def _load_layer_from_iri(self, name, iri):
-        dummy = ResourceManager.load(iri)
-        self._load_layer_on_qgis(dummy)
-
-    def _load_layer_on_qgis(self, resource):
-        def request_failed(error):
-            self.request_error = True
-            self.update_status(u'Requisição retornou um erro')
-            MessageBox.critical(error, u'Requisição retornou um erro')
+    def _load_layer_from_url(self, layer_name, url):
+        get_reply = HyperResource.request_get(url)
+        options_reply = HyperResource.request_options(url)
 
         self.timer.stop()
-        resource.request_started.connect(self.start_request)
-        resource.request_progress.connect(self.download_progress)
-        resource.request_error.connect(request_failed)
-        resource.request_finished.connect(self.trigger_reset_status)
+        get_reply.requestStarted.connect(self.start_request)
+        get_reply.downloadProgress.connect(self.download_progress)
+        get_reply.error.connect(self.show_request_error)
+        get_reply.finished.connect(self.trigger_reset_status)
 
-        # Trigger download of data and events for user feedback
-        resource.data()
+        response = get_reply.response()
+        options_response = options_reply.response()
 
         if not self.request_error:
-            layer = Plugin.create_layer(resource)
+            obj = HyperResource.create_hyper_object(response, options_response, url)
+
+            layer = Plugin.create_layer_with_hyper_object(layer_name, obj)
 
             if layer:
                 Layer.add(layer)
@@ -245,6 +245,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         self.request_error = True
         self.update_status(u'Requisição retornou um erro')
         MessageBox.critical(error, u'Requisição retornou um erro')
+
 
     def close_event(self, event):
         self.closingPlugin.emit()
@@ -347,6 +348,7 @@ class TreeItem(QObject):
 
     def parent(self):
         return self._parent
+
 
 
 class FilterTreeModel(QSortFilterProxyModel):
