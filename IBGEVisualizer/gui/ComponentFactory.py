@@ -46,9 +46,6 @@ class ListResourceTreeItem(QTreeWidgetItem):
 
         #self.setBackground(0, QBrush(QColor(255, 252, 226)))
 
-    def setResource(self, resource):
-        self.resource = resource
-
     def setName(self, name):
         self.setText(0, name)
 
