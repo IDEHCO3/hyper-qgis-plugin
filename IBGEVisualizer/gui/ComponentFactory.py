@@ -59,6 +59,10 @@ class ListResourceTreeItem(QTreeWidgetItem):
     def url(self):
         return self.text(1)
 
+    def mark_as_entry_point(self):
+        entry_point_icon = QIcon(':/plugins/IBGEVisualizer/icon-entry-point.png')
+        self.setIcon(0, entry_point_icon)
+
 
 # Classe de itens que serão adicionados à list_attributes em dialog_construct_url_2
 class SupportedOperationListItem(QListWidgetItem):

@@ -236,6 +236,7 @@ JSON_LD_CONTENT_TYPE = 'application/ld+json'
 
 CONTEXT_LINK = 'http://www.w3.org/ns/json-ld#context'
 ENTRY_POINT_LINK = 'https://schema.org/EntryPoint'
+ENTRY_POINT_HTTP_LINK = 'http://schema.org/EntryPoint'
 STYLESHEET_LINK = 'stylesheet'
 METADATA_LINK = 'metadata'
 
@@ -391,7 +392,7 @@ class HeaderReader:
         return self.field('link')
 
     def is_entry_point(self):
-        return self.link_header().get(ENTRY_POINT_LINK) or False
+        return self.link_header().get(ENTRY_POINT_LINK) or self.link_header().get(ENTRY_POINT_HTTP_LINK) or False
 
     def stylesheet_iri(self):
         return self.link_header().get(STYLESHEET_LINK)
@@ -629,3 +630,4 @@ class JsonLdParser:
     def parse(self, iri):
         print(jsonld.expand(iri))
         return {}
+

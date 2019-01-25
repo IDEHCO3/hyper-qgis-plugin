@@ -9,6 +9,8 @@ from collections import OrderedDict
 from PyQt4.QtGui import QIcon
 from IBGEVisualizer import HyperResource
 from IBGEVisualizer.gui import ComponentFactory
+from IBGEVisualizer.model import ResourceManager
+
 
 class ResourceTreeWidgetDecorator:
     def __init__(self, decorated):
@@ -24,16 +26,12 @@ class ResourceTreeWidgetDecorator:
         if not item:
             return
 
-        name = item.text(0)
-        url = item.text(1)
+        iri = item.text(1)
+        resource = ResourceManager.load(iri)
 
         item_is_leaf_node = item.childCount() <= 0
         if item_is_leaf_node:
-            # Verificar se item é entry_point
-            # Se sim carregar lista de camadas
-            # senão retornar
-            url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
-            if url_is_entry_point:
+            if resource.is_entry_point():
                 self.load_entry_point_children(item)
                 return
             return
@@ -60,6 +58,8 @@ class ResourceTreeWidgetDecorator:
         order_alphabetically = lambda i: sorted(i, key=lambda t: t[0])
         entry_point_list = OrderedDict(order_alphabetically(entry_point_list.items()))
 
+        # For the next level, mark what is entry point
+
         return self.append_entry_point(resource, entry_point_list)
 
     def append(self, item, parent=None):
@@ -77,11 +77,11 @@ class ResourceTreeWidgetDecorator:
         create_item = ComponentFactory.create_list_resource_element
 
         parent_item = create_item(resource.name, resource.iri)
-        entry_point_icon = QIcon(':/plugins/IBGEVisualizer/icon-entry-point.png')
-        parent_item.setIcon(0, entry_point_icon)
+        parent_item.mark_as_entry_point()
 
         for name, url in entry_point_elements.items():
             item = create_item(name, url)
+
             self.append(item, parent_item)
 
         self.append(parent_item)

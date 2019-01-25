@@ -5,9 +5,9 @@
     "polygon": "http://172.30.10.86/api/bcim/unidades-federativas/PA/geom", 
     "point": "http://172.30.10.86/api/bcim/aldeias-indigenas/623/geom", 
     "DF": "http://172.30.10.86/api/bcim/unidades-federativas/DF", 
-    "linestring": "http://172.30.10.86/api/bcim/trechos-ferroviarios/12711/geom", 
+    "IBGE-BCIM": "http://172.30.10.86/api/bcim/", 
     "estatistica": "http://172.30.10.86/dados-estatisticos-app-list/", 
-    "PA": "http://172.30.10.86/api/bcim/unidades-federativas/DF/", 
-    "bcim": "http://172.30.10.86/api/bcim/"
+    "PA": "http://172.30.10.86/api/bcim/unidades-federativas/PA/", 
+    "linestring": "http://172.30.10.86/api/bcim/trechos-ferroviarios/12711/geom"
   }
 }

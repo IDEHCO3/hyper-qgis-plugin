@@ -66,19 +66,22 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
     def _list_resource_doubleClicked(self, item):
         name = item.text(0)
-        url = item.text(1)
+        iri = item.text(1)
 
         item_has_children = item.childCount() > 0
         if item_has_children:
             return
 
         # Verifica se é um entrypoint com layers ainda não carregadas
-        # url_is_entry_point = HyperResource.is_entry_point(HyperResource.request_head(url).response())
-        # if url_is_entry_point:
-        #     self.add_entry_point_to_resources(name, url)
-        #     return
+        resource = ResourceManager.load(iri)
 
-        self.open_operations_editor(name, url)
+        url_is_entry_point = resource.is_entry_point()
+        if url_is_entry_point:
+            #transform item in entry point
+            #self.add_entry_point(name, iri)
+            return
+
+        self.open_operations_editor(name, iri)
 
     def _bt_add_resource_clicked(self):
         self.open_add_resource_dialog()
@@ -121,27 +124,31 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         for name, iri in model.items():
             resource = ResourceManager.load(iri, name)
             self.load_resource(resource)
-            #self.load_resource(name, iri)
-
 
     def open_context_menu(self, position):
         item = self.list_resource.itemAt(position)
-        resource = ResourceManager.load(item.url(), item.name())
         if not item:
             return
 
+        resource = ResourceManager.load(item.url(), item.name())
         is_tree_leaf = item.childCount() == 0
 
+        if is_tree_leaf:
+            self.show_context_menu(item, resource, position)
+        else:
+            self.show_entry_point_menu(item, resource, position)
+
+    def show_context_menu(self, item, resource, where):
         menu = QMenu()
 
         # Load layers action
         action_open_layer = QAction(self.tr(u'Carregar camada'), None)
         action_open_layer.triggered.connect(lambda: self._load_layer_on_qgis(resource))
-        menu.addAction(action_open_layer) if is_tree_leaf else None
+        menu.addAction(action_open_layer)
 
         # Load layers as...
-        #action_open_layer_as = QAction(self.tr(u'Carregar camada como...'), None)
-        #action_open_layer_as.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
+        # action_open_layer_as = QAction(self.tr(u'Carregar camada como...'), None)
+        # action_open_layer_as.triggered.connect(lambda: self._load_layer_from_url(item.text(0), item.text(1)))
         # menu.addAction(action_open_layer_as)
 
         menu.addSeparator()
@@ -149,15 +156,24 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         # Montar Operações
         action_open_editor = QAction(self.tr(u'Montar operações'), None)
         action_open_editor.triggered.connect(lambda: self.open_operations_editor(item.text(0), item.text(1)))
-        menu.addAction(action_open_editor) if is_tree_leaf else None
+        menu.addAction(action_open_editor)
 
-        menu.addSeparator() if is_tree_leaf else None
+        menu.addSeparator()
 
         action_edit = QAction(self.tr(u'Editar'), None)
         action_edit.triggered.connect(lambda: self.open_edit_dialog(item))
         menu.addAction(action_edit)
 
-        menu.exec_(self.list_resource.viewport().mapToGlobal(position))
+        menu.exec_(self.list_resource.viewport().mapToGlobal(where))
+
+    def show_entry_point_menu(self, item, resource, where):
+        menu = QMenu()
+
+        action_edit = QAction(self.tr(u'Editar'), None)
+        action_edit.triggered.connect(lambda: self.open_edit_dialog(item))
+        menu.addAction(action_edit)
+
+        menu.exec_(self.list_resource.viewport().mapToGlobal(where))
 
     def open_edit_dialog(self, item):
         dialog_edit_resource = DialogEditResource(item)
@@ -170,7 +186,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         resource = ResourceManager.load(url, name)
 
         dialog_construct_url = DialogConstructUrl(resource)
-        dialog_construct_url.load_url_command.connect(self._load_layer_from_iri)
+        dialog_construct_url.load_url_command.connect(lambda n, i: self._load_layer_from_iri(dialog_construct_url, n, i))
         dialog_construct_url.exec_()
 
         return dialog_construct_url
@@ -194,13 +210,18 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         tree_item.setText(0, new_name)
         tree_item.setText(1, new_url)
 
-    def _load_layer_from_iri(self, name, iri):
-        dummy = ResourceManager.load(iri)
-        self._load_layer_on_qgis(dummy)
+    def _load_layer_from_iri(self, widget, name, iri):
+        try:
+            dummy = ResourceManager.load(iri, name)
+            self._load_layer_on_qgis(dummy)
+            widget.close()
+
+        except Exception as e:
+            raise
 
     def _load_layer_on_qgis(self, resource):
         def request_failed(error):
-            self.request_error = True
+            self.request_error = error
             self.update_status(u'Requisição retornou um erro')
             MessageBox.critical(error, u'Requisição retornou um erro')
 
@@ -218,7 +239,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
             if layer:
                 Layer.add(layer)
-
+        else:
+            raise Exception(self.request_error)
 
     def start_request(self):
         self.request_error = False
@@ -239,12 +261,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
     def trigger_reset_status(self):
         if not self.request_error:
+            #self.request_error = False
             self.timer.start()
-
-    def show_request_error(self, error):
-        self.request_error = True
-        self.update_status(u'Requisição retornou um erro')
-        MessageBox.critical(error, u'Requisição retornou um erro')
 
     def close_event(self, event):
         self.closingPlugin.emit()
@@ -322,31 +340,6 @@ class ResourceTreeModel(QStandardItemModel):
             return Qt.ItemIsEnabled
 
         return Qt.ItemIsEnabled
-
-
-class TreeItem(QObject):
-    def __init__(self, name, url='', parent=None):
-        self._parent = parent
-        self.name = name
-        self.url = url
-        self.children = []
-
-    def add_child(self, item):
-        self.children.append(item)
-
-    def get_child(self, index_num):
-        return self.children[index_num]
-
-    def is_entry_point(self):
-        if not self.url: return False
-        if not HyperResource.url_exists(self.url): return False
-
-        head = HyperResource.request_head(self.url)
-
-        return HyperResource.is_entry_point(head.response())
-
-    def parent(self):
-        return self._parent
 
 
 class FilterTreeModel(QSortFilterProxyModel):

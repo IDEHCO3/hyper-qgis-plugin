@@ -67,8 +67,6 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         url = self.ta_url.toPlainText()
         name = url.strip('/').split('/')[-1]
         self.load_url_command.emit(name, unicode(url))
-        self.close()
-
 
     def _load_property_list_frame(self):
         property_ = self.list_attributes.currentItem().name

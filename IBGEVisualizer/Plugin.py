@@ -156,7 +156,9 @@ class SimpleJSON(object):
 
         if self.supported_properties:
             for field_name in self.keys:
-                type_ = self.supported_properties[field_name].get('@type')
+                prop = next(prop for prop in self.supported_properties if prop.name == field_name)
+
+                type_ = prop.property_type
                 qvariant_type = _convert_to_QVariant(type_)
 
                 result.append(QgsField(field_name, qvariant_type))
@@ -186,13 +188,14 @@ class SimpleJSONCollection:
 
         return self.properties[0].get_qgs_fields()
 
-    def get_qgs_features(self):
+    def as_qgs_features(self):
         qgs_features = []
 
         for p in self.properties:
-            qgs_features.append(p.as_qgs_features())
+            qgs_features.append(next(iter(p.as_qgs_features())))
 
         return qgs_features
+
 
 def _convert_to_QVariant(var_type):
     switch = {
