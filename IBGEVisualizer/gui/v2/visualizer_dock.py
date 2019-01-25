@@ -78,7 +78,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         url_is_entry_point = resource.is_entry_point()
         if url_is_entry_point:
             #transform item in entry point
-            #self.add_entry_point(name, iri)
+            item.mark_as_entry_point()
+            self.list_resource.add(resource, item)
             return
 
         self.open_operations_editor(name, iri)

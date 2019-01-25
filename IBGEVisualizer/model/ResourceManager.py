@@ -12,6 +12,7 @@ def load(iri, name=''):
 
     if i in _resource_set:
         resource = _resource_set[i]
+        resource.name = name
 
     else:
         resource = Resource(i, name)

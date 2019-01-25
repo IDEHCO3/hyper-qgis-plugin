@@ -1,13 +1,14 @@
 {
   "memo_urls": {
     "cidades proj": "http://172.30.10.86/api/bcim/cidades/projection/nome", 
-    "geom collection": "http://172.30.10.86/api/bcim/unidades-federativas/geom", 
+    "linestring": "http://172.30.10.86/api/bcim/trechos-ferroviarios/12711/geom", 
     "polygon": "http://172.30.10.86/api/bcim/unidades-federativas/PA/geom", 
+    "ibge ": "http://localhost:8000/api/ibge/", 
     "point": "http://172.30.10.86/api/bcim/aldeias-indigenas/623/geom", 
     "DF": "http://172.30.10.86/api/bcim/unidades-federativas/DF", 
     "IBGE-BCIM": "http://172.30.10.86/api/bcim/", 
     "estatistica": "http://172.30.10.86/dados-estatisticos-app-list/", 
     "PA": "http://172.30.10.86/api/bcim/unidades-federativas/PA/", 
-    "linestring": "http://172.30.10.86/api/bcim/trechos-ferroviarios/12711/geom"
+    "geom collection": "http://172.30.10.86/api/bcim/unidades-federativas/geom"
   }
 }
