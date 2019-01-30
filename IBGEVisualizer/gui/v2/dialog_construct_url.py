@@ -7,13 +7,15 @@ from PyQt4 import uic
 from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QDialog, QListWidgetItem, QPainter, QPixmap
 
-from IBGEVisualizer import HyperResource, Utils
+from IBGEVisualizer.HyperResource import ITEM_LIST_TYPE_VOCAB, EXPRESSION_TYPE_VOCAB, GEOMETRY_TYPE_VOCAB, FLOAT_TYPE_VOCAB
 from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilterExpression
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
 from IBGEVisualizer.gui.v2.components.frame_geometry import FrameGeometry
 from IBGEVisualizer.gui.v2.components.frame_empty_expects import FrameEmptyExpects
+from IBGEVisualizer.gui.v2.components.frame_float_expects import FrameFloatExpects
 from IBGEVisualizer.gui import ComponentFactory
+from IBGEVisualizer.model import ResourceManager
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'dialog_construct_url.ui'))
@@ -52,14 +54,17 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
             if len(item.property.expects) < 1:
                 self._load_empty_expects_frame(item)
 
-            if 'http://extension.schema.org/expression' in item.property.expects:
+            if EXPRESSION_TYPE_VOCAB in item.property.expects:
                 self._load_filter_expression_frame()
 
-            elif 'http://schema.org/ItemList' in item.property.expects:
+            elif ITEM_LIST_TYPE_VOCAB in item.property.expects:
                 self._load_item_list_frame()
 
-            elif 'http://geojson.org/geojson-ld/vocab.html#geometry' in item.property.expects:
+            elif GEOMETRY_TYPE_VOCAB in item.property.expects:
                 self._load_geometry_frame()
+
+            elif FLOAT_TYPE_VOCAB in item.property.expects:
+                self._load_float_frame()
 
         self.url_builder.set_operation(item.name)
 
@@ -70,17 +75,18 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
     def _load_property_list_frame(self):
         property_ = self.list_attributes.currentItem().name
-        widget = FramePropertyList(self.resource.iri, property_)
+        widget = FramePropertyList(self.resource, property_)
         self._insert_in_operations_layout(widget)
 
     def _load_filter_expression_frame(self):
-        widget = FrameFilterExpression(self.resource.iri)
+        widget = FrameFilterExpression(self.resource)
         self._insert_in_operations_layout(widget)
         widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_item_list_frame(self):
-        widget = FrameItemListExpression(self.resource.iri)
+        widget = FrameItemListExpression(self.resource)
         self._insert_in_operations_layout(widget)
+        widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_geometry_frame(self):
         widget = FrameGeometry()
@@ -88,12 +94,19 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_empty_expects_frame(self, item):
-        url_base = self.url_builder.url()
-        url_base = url_base + ('/' if not url_base.endswith('/') else '')
-        url = url_base + item.text()
+        url = self.resource.iri
+        url = url + ('' if url.endswith('/') else '/')
+        url = url + item.text()
 
-        widget = FrameEmptyExpects(url)
+        resource = ResourceManager.load(url)
+
+        widget = FrameEmptyExpects(resource)
         self._insert_in_operations_layout(widget)
+
+    def _load_float_frame(self):
+        widget = FrameFloatExpects()
+        self._insert_in_operations_layout(widget)
+        widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _insert_in_operations_layout(self, widget):
         if not widget: return

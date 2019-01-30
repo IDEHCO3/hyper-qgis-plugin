@@ -3,7 +3,6 @@
 
 import os
 import re
-import copy
 import json
 
 import Utils
@@ -33,68 +32,6 @@ def request_head(url):
     Utils.Logging.info(u'URL consultada: {}. Method: HEAD'.format(url), u'IBGEVisualizer')
     return request.head(url)
 
-
-def url_exists(url):
-    reply = HEAD(url)
-    response = reply.response()
-    return 200 <= response.get('status_code') < 300, response
-
-def is_entry_point(response):
-    if 200 <= response.get('status_code') < 300:
-        link_tab = response.get('headers').get('link')
-
-        if link_tab:
-            return link_tab.find('rel="http://schema.org/EntryPoint"') >= 0 \
-                or link_tab.find('rel="https://schema.org/EntryPoint"') >= 0
-
-    return False
-
-
-def translate_get(response):
-    return response
-
-def translate_options(response, url=''):
-    body = response.get('body')
-    headers = response.get('headers')
-
-    link_tab = headers.get('link') or ''
-
-    try:
-        json_data = json.loads(body)
-
-        fields = _get_fields(json_data.get('@context'))
-
-        # text_url = url if url.endswith('/') else url + '/'
-        resources = copy.copy(json_data.get('@context').keys())
-        resources = [path.replace(' ', '-') for path in resources]
-        resources = [path if path.endswith('/') else path + '/' for path in resources]
-        # resources = [text_url + path for path in resources]
-
-        if 'hydra:supportedProperties' in json_data:
-            supported_properties = [SupportedProperty(**data) for data in json_data['hydra:supportedProperties']]
-            supported_properties.sort(key=lambda prop: prop.name)
-        else:
-            supported_properties = None
-
-        if 'hydra:supportedOperations' in json_data:
-            supported_operations = [SupportedOperation(**data) for data in json_data['hydra:supportedOperations']]
-            supported_operations.sort(key=lambda oper: oper.name)
-        else:
-            supported_operations = None
-
-        r = {
-            'url': url,
-            'fields': fields,
-            'attributes': sorted(resources),
-            'supported_properties': supported_properties,
-            'supported_operations': supported_operations
-        }
-
-    except ValueError:
-        return
-
-    return r
-
 def _get_fields(context):
     if context is None:
         return {}
@@ -102,11 +39,11 @@ def _get_fields(context):
     output = {}
 
     switch = {
-        u"http://schema.org/Integer": int,
-        u"http://schema.org/Text": unicode,
-        u"http://schema.org/Float": float,
-        u"http://schema.org/Boolean": bool,
-        u"http://geojson.org/geojson-ld/vocab.html#geometry": u'geometria',
+        INTEGER_TYPE_VOCAB: int,
+        TEXT_TYPE_VOCAB: unicode,
+        FLOAT_TYPE_VOCAB: float,
+        BOOLEAN_TYPE_VOCAB: bool,
+        GEOMETRY_TYPE_VOCAB: u'geometria',
         u"@id": unicode
     }
 
@@ -138,7 +75,8 @@ class SupportedProperty(object):
         self.is_external = data.get('isExternal') or data.get('is_external') or False
 
         term_definition = at_context.get(self.name) or {}
-        self.property_type = term_definition.get('@type')
+        self.at_type = term_definition.get('@type') or None
+        self.at_id = term_definition.get('@id')
 
     def __str__(self):
         return u'<SupportedProperty: "name":{}, "is_writeable":{}, "is_readable":{}, "is_required":{}, "is_unique": {}, "is_identifier": {}, "is_external": {}>' \
@@ -255,7 +193,16 @@ LINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#LineString"
 MULTILINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiLineString"
 POLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Polygon"
 MULTIPOLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiPolygon"
+GEOMETRY_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#geometry"
 GEOMETRY_COLLECTION_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#GeometryCollection"
+
+EXPRESSION_TYPE_VOCAB = 'http://extension.schema.org/expression'
+ITEM_LIST_TYPE_VOCAB = 'https://schema.org/ItemList'
+THING_TYPE_VOCAB = 'https://schema.org/Thing'
+INTEGER_TYPE_VOCAB = 'https://schema.org/Integer'
+FLOAT_TYPE_VOCAB = 'https://schema.org/Float'
+TEXT_TYPE_VOCAB = 'https://schema.org/Text'
+BOOLEAN_TYPE_VOCAB = 'https://schema.org/Boolean'
 
 class Resource(QObject):
     request_started = pyqtSignal()
@@ -311,7 +258,7 @@ class Resource(QObject):
             self._get = GetReader(self.iri)
             self._connect_signals(self._get)
 
-        return self._get.data()
+        return self._get
 
     def options(self):
         if self._options is None:
@@ -325,14 +272,29 @@ class Resource(QObject):
     def operations(self):
         return self.options().operations()
 
+    def property(self, name):
+        return self.options().get_property(name)
+
+    def operation(self, name):
+        return self.options().get_operation(name)
+
+    def as_text(self):
+        return self.data().as_text()
+
     def as_json(self):
-        return self._get.as_json()
+        return self.data().as_json()
 
     def resource_type(self):
         return self.options().at_type()
 
     def is_entry_point(self):
         return self.header().is_entry_point()
+
+    def at_id(self):
+        return self.options().at_id()
+
+    def at_type(self):
+        return self.options().at_type()
 
     def _connect_signals(self, obj):
         obj.request_started.connect(self.request_started)
@@ -503,7 +465,7 @@ class GetReader(QObject):
 
         return self._response
 
-    def data(self):
+    def as_text(self):
         if not self.__data:
             self.__data = self.response()
 
@@ -514,7 +476,7 @@ class GetReader(QObject):
         return self.__data.get('body')
 
     def as_json(self):
-        return json.loads(self.data())
+        return json.loads(self.as_text())
 
     def _connect_signals(self, obj):
         obj.requestStarted.connect(self.request_started)
@@ -596,25 +558,27 @@ class OptionsReader:
     @staticmethod
     def _extract_supported_operations(json_options):
         if SUPPORTED_OPERATION_VOCAB not in json_options:
-            return {}
+            return []
 
         json_supported_oper = json_options[SUPPORTED_OPERATION_VOCAB]
 
+        order_by_name = lambda prop: prop.name
         return_array = [SupportedOperation(**elem) for elem in json_supported_oper]
-        return_array.sort(key=lambda oper: oper.name)
+        return_array.sort(key=order_by_name)
 
         return return_array
 
     @staticmethod
     def _extract_supported_properties(json_options):
         if SUPPORTED_PROPERTY_VOCAB not in json_options:
-            return {}
+            return []
 
         json_supported_prop = json_options.get(SUPPORTED_PROPERTY_VOCAB)
         at_context = json_options.get('@context')
 
+        order_by_name = lambda prop: prop.name
         return_array = [SupportedProperty(at_context, **elem) for elem in json_supported_prop]
-        return_array.sort(key=lambda prop: prop.name)
+        return_array.sort(key=order_by_name)
 
         return return_array
 

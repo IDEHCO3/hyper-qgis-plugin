@@ -1,13 +1,11 @@
 
 # coding: utf-8
 
-import os, json
+import os
 
 from PyQt4 import uic, QtCore
 from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QFrame
-
-from IBGEVisualizer import HyperResource
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -16,11 +14,8 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class FrameEmptyExpects(QFrame, FORM_CLASS):
     criteria_inserted = pyqtSignal(str)
 
-    def __init__(self, url):
+    def __init__(self, resource):
         super(FrameEmptyExpects, self).__init__()
         self.setupUi(self)
 
-        reply = HyperResource.request_get(url)
-        response = reply.response()
-
-        self.lb_content.setText(response.get('body'))
+        self.ta_content.setPlainText(resource.as_text())

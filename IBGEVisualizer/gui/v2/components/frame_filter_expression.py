@@ -7,7 +7,8 @@ from PyQt4 import uic, QtCore
 from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QFrame, QListWidgetItem
 
-from IBGEVisualizer import HyperResource, Utils
+from IBGEVisualizer import HyperResource
+from IBGEVisualizer.model import ResourceManager
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'frame_filter_expression.ui'))
@@ -15,11 +16,11 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class FrameFilterExpression(QFrame, FORM_CLASS):
     criteria_inserted = pyqtSignal(str)
 
-    def __init__(self, url):
+    def __init__(self, resource):
         super(FrameFilterExpression, self).__init__()
         self.setupUi(self)
 
-        self.url = url
+        self.resource = resource
 
         self.tab_values.setCurrentIndex(0)
         self.tab_values.currentChanged.connect(lambda n: self._on_tab_change(n))
@@ -27,7 +28,6 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.preview_builder = FilterPreviewBuilder()
         self.preview_builder.preview_changed.connect(self.preview_changed)
 
-        # Mudar preview ao selecionar novo item na combo box property e influenciar a tab atual
         self.cb_filter_property.currentIndexChanged.connect(self._cb_property_changed)
 
         self.bt_insert_criteria.clicked.connect(self._emit_insert_criteria)
@@ -75,15 +75,14 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.tabUrl_tx_url.textChanged.connect(self._tabUrl_tx_url_text_changed)
         self.tabUrl_tx_url.setAcceptDrops(True)
 
-        self._fill_cb_filter_property(url)
+        self._fill_cb_filter_property(resource)
 
     def _on_tab_change(self, index):
         switch = {
             0: self._tabValue_setup,
             1: self.bla,
-            2: self.bla,
-            3: self._tabListValue_setup,
-            4: self._tabUrl_setup,
+            2: self._tabListValue_setup,
+            3: self._tabUrl_setup,
         }
 
         # executing
@@ -97,13 +96,12 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.tabValue_list_values.clear()
         self.tabValue_tx_insert_value.clear()
 
-        url = self.url
         prop = self.preview_builder.property()
 
         if prop == 'geom':
             return
 
-        property_list = self._get_property_from_url(url, prop)
+        property_list = self._get_property(self.resource, prop)
 
         for elem in property_list:
             k, v = elem.items()[0]
@@ -117,13 +115,12 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.tabListValue_list_values.clear()
         self.tabListValue_tx_value.clear()
 
-        url = self.url
         prop = self.preview_builder.property()
 
         if prop == 'geom':
             return
 
-        property_list = self._get_property_from_url(url, prop)
+        property_list = self._get_property(self.resource, prop)
 
         for elem in property_list:
             k, v = elem.items()[0]
@@ -136,15 +133,8 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
     def _tabUrl_setup(self):
         self.tabUrl_list_operations.clear()
 
-        url = self.url
-        prop = self.preview_builder.property()
-        url = url + ('' if url.endswith('/') else '/')
-
-        projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
-
-        reply = HyperResource.request_options(projection_url)
-        response = HyperResource.translate_options(reply.response())
-        operations = response.get('supported_operations')
+        # TODO Aqui operations deveria ser as operações do atributo selecionado e não da coleção, mas não há acesso facilitado a isso
+        operations = self.resource.operations()
 
         for elem in operations:
             item = OperationListItem(elem)
@@ -158,20 +148,19 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         # e mudar a aba atual
         self._current_tab_property_changed(index)
 
-    def _get_property_from_url(self, url, prop):
+    def _get_property(self, resource, prop):
+        url = resource.iri
         url = url + ('' if url.endswith('/') else '/')
         projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
 
-        reply = HyperResource.request_get(projection_url)
-        response = reply.response()
+        resource = ResourceManager.load(projection_url)
 
-        return sorted(json.loads(response.get('body')))
+        return sorted(resource.as_json())
 
     def _current_tab_property_changed(self, index):
-        url = self.url
         prop = self.preview_builder.property()
 
-        property_list = self._get_property_from_url(url, prop)
+        property_list = self._get_property(self.resource, prop)
 
         current_tab = self.tab_values.currentIndex()
 
@@ -192,7 +181,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
                 self.tabValue_list_values.addItem(item)
 
         # tab Lista de Valores
-        elif current_tab == 3:
+        elif current_tab == 2:
             self.tabListValue_list_values.clear()
             self.tabListValue_tx_value.clear()
 
@@ -208,23 +197,8 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
                 self.tabListValue_list_values.addItem(item)
 
         # tab URL
-        elif current_tab == 4:
-            self.tabUrl_list_operations.clear()
-
-            url = self.url
-            prop = self.preview_builder.property()
-            url = url + ('' if url.endswith('/') else '/')
-
-            projection_url = u'{url}projection/{prop}/offset-limit/1&200'.format(url=url, prop=prop)
-
-            reply = HyperResource.request_options(projection_url)
-            response = HyperResource.translate_options(reply.response())
-            operations = response.get('supported_operations')
-
-            for elem in operations:
-                item = OperationListItem(elem)
-
-                self.tabUrl_list_operations.addItem(item)
+        elif current_tab == 3:
+            self._tabUrl_setup()
 
 
     def _tabValue_list_values_selection_changed(self):
@@ -252,7 +226,6 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.preview_builder.set_value(text)
 
 
-
     def _set_preview_property(self, index):
         property_ = self.cb_filter_property.itemText(index)
         self.preview_builder.set_property(property_)
@@ -263,13 +236,8 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
     def preview_changed(self, preview):
         self.lb_criteria_preview.setText(preview)
 
-    def _fill_cb_filter_property(self, url):
-        reply = HyperResource.request_options(url)
-        response = reply.response()
-
-        translate = HyperResource.translate_options(response, url)
-
-        items = sorted([elem.name for elem in (translate.get('supported_properties') or [])])
+    def _fill_cb_filter_property(self, resource):
+        items = sorted([elem.name for elem in (resource.properties() or [])])
 
         self.cb_filter_property.addItems(items)
 

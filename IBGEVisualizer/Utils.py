@@ -102,19 +102,19 @@ class MessageBox:
     NO_ICON, INFORMATION, WARNING, CRITICAL, QUESTION = range(5)
 
     @staticmethod
-    def info(message, title):
+    def info(message, title=''):
         Utils.message_box(message, title, MessageBox.INFORMATION)
 
     @staticmethod
-    def critical(message, title):
+    def critical(message, title=''):
         Utils.message_box(message, title, MessageBox.CRITICAL)
 
     @staticmethod
-    def question(message, title):
+    def question(message, title=''):
         return Utils.question_box(message, title)
 
     @staticmethod
-    def warning(message, title):
+    def warning(message, title=''):
         Utils.message_box(message, title, MessageBox.WARNING)
 
 

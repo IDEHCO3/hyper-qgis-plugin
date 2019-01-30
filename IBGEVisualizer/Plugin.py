@@ -42,14 +42,15 @@ class GeoJsonFeature:
 
         if self.supported_properties:
             for field_name in self.keys:
-                prop = next(prop for prop in self.supported_properties if prop.name == field_name)
+                arr = [prop for prop in self.supported_properties if prop.name == field_name]
+                prop = next(iter(arr)) if len(arr) else None
 
                 if prop:
-                    field_type = _convert_to_QVariant(prop.property_type)
+                    field_type = _convert_to_QVariant(prop.at_type)
                     result.append(QgsField(field_name, field_type))
                 else:
-                    raise Exception(u"Arquivo de contexto não é compatível com os dados deste recurso", u'')
-                    #raise ValueError(u"Arquivo de contexto não é compatível com os dados deste recurso")
+                    Utils.MessageBox.critical(u"Arquivo de contexto não é compatível com os dados deste recurso")
+                    raise Exception(u"Arquivo de contexto não é compatível com os dados deste recurso")
 
         else:
             for field_name in self.keys:
@@ -136,12 +137,12 @@ class GeometryCollection:
 
 
 class SimpleJSON(object):
-    def __init__(self, json_obj, resource_properties):
+    def __init__(self, json_data, resource_properties):
         self.fields = {}
         self.supported_properties = resource_properties
 
-        for k, v in json_obj.items():
-            if isinstance(v, (int, str, type(None), unicode, type(u''), float)):
+        for k, v in json_data.items():
+            if isinstance(v, (int, str, type(None), type(u''), float)):
                 self.fields.update({k: v})
 
             else:
@@ -158,7 +159,7 @@ class SimpleJSON(object):
             for field_name in self.keys:
                 prop = next(prop for prop in self.supported_properties if prop.name == field_name)
 
-                type_ = prop.property_type
+                type_ = prop.at_type
                 qvariant_type = _convert_to_QVariant(type_)
 
                 result.append(QgsField(field_name, qvariant_type))
@@ -237,6 +238,18 @@ def _parse_to_layer(resource):
         MULTILINESTRING_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
         POLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
         MULTIPOLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+
+        'Collection': lambda: SimpleJSONCollection(resource),
+        'Thing': lambda: SimpleJSON(resource.as_json(), resource.properties()),
+        'FeatureCollection': lambda: FeatureCollection(resource),
+        'GeometryCollection': lambda: GeometryCollection(resource),
+        'Feature': lambda: GeoJsonFeature(resource.as_json(), resource.properties()),
+        'Point': lambda: GeoJsonGeometry(resource.as_json()),
+        'MultiPoint': lambda: GeoJsonGeometry(resource.as_json()),
+        'LineString': lambda: GeoJsonGeometry(resource.as_json()),
+        'MultiLineString': lambda: GeoJsonGeometry(resource.as_json()),
+        'Polygon': lambda: GeoJsonGeometry(resource.as_json()),
+        'MultiPolygon': lambda: GeoJsonGeometry(resource.as_json()),
     }
 
     at_type = resource.options().at_type()

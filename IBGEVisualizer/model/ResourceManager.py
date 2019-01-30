@@ -8,7 +8,7 @@ _resource_set = dict()
 def load(iri, name=''):
     i = iri.strip()
     if not i:
-        raise ValueError(u'iri com valor vazio')
+        raise ValueError(u'Endereço vazio')
 
     if i in _resource_set:
         resource = _resource_set[i]
