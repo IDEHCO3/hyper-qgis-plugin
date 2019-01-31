@@ -1,10 +1,8 @@
 
 # coding: utf-8
 
-import json
-
-from qgis.core import *
 from PyQt4.QtCore import QVariant
+from qgis.core import QgsGeometry, QgsField, QgsFields, QgsFeature
 
 import Geometry, Utils
 
@@ -101,8 +99,6 @@ class FeatureCollection:
 
 
 class GeoJsonGeometry:
-    accepted_geometries = ['point', 'multipoint', 'linestring', 'multilinestring', 'polygon', 'multipolygon']
-
     def __init__(self, json_data):
         self.geometry = Geometry.convert_to_qgs_geometry(json_data)
         self.geom_type = json_data.get('type') or 'polygon'

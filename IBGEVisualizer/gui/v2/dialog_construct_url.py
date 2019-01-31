@@ -7,13 +7,15 @@ from PyQt4 import uic
 from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QDialog, QListWidgetItem, QPainter, QPixmap
 
-from IBGEVisualizer.HyperResource import ITEM_LIST_TYPE_VOCAB, EXPRESSION_TYPE_VOCAB, GEOMETRY_TYPE_VOCAB, FLOAT_TYPE_VOCAB
+from IBGEVisualizer.HyperResource import ITEM_LIST_TYPE_VOCAB, EXPRESSION_TYPE_VOCAB, GEOMETRY_TYPE_VOCAB, \
+    FLOAT_TYPE_VOCAB, PROPERTY_VOCAB
 from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilterExpression
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
 from IBGEVisualizer.gui.v2.components.frame_geometry import FrameGeometry
 from IBGEVisualizer.gui.v2.components.frame_empty_expects import FrameEmptyExpects
 from IBGEVisualizer.gui.v2.components.frame_float_expects import FrameFloatExpects
+from IBGEVisualizer.gui.v2.components.frame_offset_limit import FrameOffsetLimit
 from IBGEVisualizer.gui import ComponentFactory
 from IBGEVisualizer.model import ResourceManager
 
@@ -54,10 +56,13 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
             if len(item.property.expects) < 1:
                 self._load_empty_expects_frame(item)
 
-            if EXPRESSION_TYPE_VOCAB in item.property.expects:
+            elif item.name == 'offset-limit':
+                self._load_offset_limit_frame()
+
+            elif EXPRESSION_TYPE_VOCAB in item.property.expects:
                 self._load_filter_expression_frame()
 
-            elif ITEM_LIST_TYPE_VOCAB in item.property.expects:
+            elif ITEM_LIST_TYPE_VOCAB in item.property.expects or PROPERTY_VOCAB in item.property.expects:
                 self._load_item_list_frame()
 
             elif GEOMETRY_TYPE_VOCAB in item.property.expects:
@@ -72,6 +77,11 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         url = self.ta_url.toPlainText()
         name = url.strip('/').split('/')[-1]
         self.load_url_command.emit(name, unicode(url))
+
+    def _load_offset_limit_frame(self):
+        widget = FrameOffsetLimit()
+        self._insert_in_operations_layout(widget)
+        widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_property_list_frame(self):
         property_ = self.list_attributes.currentItem().name

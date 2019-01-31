@@ -5,7 +5,6 @@
 # Component in visualizer_docker
 from collections import OrderedDict
 
-from PyQt4.QtGui import QIcon
 from IBGEVisualizer.gui import ComponentFactory
 
 
