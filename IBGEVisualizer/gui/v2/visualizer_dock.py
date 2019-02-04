@@ -16,7 +16,6 @@ from IBGEVisualizer.gui.v2.dialog_add_resource import DialogAddResource
 from IBGEVisualizer.gui.v2.dialog_edit_resource import DialogEditResource
 
 
-YELLOW = QBrush(QColor(255, 252, 226))
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'visualizer_dock.ui'))
 
@@ -74,11 +73,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         # Verifica se é um entrypoint com layers ainda não carregadas
         resource = ResourceManager.load(iri)
-
-        url_is_entry_point = resource.is_entry_point()
-        if url_is_entry_point:
-            #transform item in entry point
-            item.mark_as_entry_point()
+        if resource.is_entry_point():
+            item.set_icon_entry_point()
             self.list_resource.add(resource, item)
             return
 
@@ -109,7 +105,11 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
     def load_resource(self, resource):
         parent_item = self.list_resource.add(resource)
-        parent_item.setBackground(0, YELLOW)
+
+        if resource.error:
+            parent_item.set_icon_error()
+
+        parent_item.set_color_user_resource()
 
     def add_resource(self, name, url):
         resource = ResourceManager.load(url, name)
@@ -132,9 +132,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             return
 
         resource = ResourceManager.load(item.url(), item.name())
-        is_tree_leaf = item.childCount() == 0
-
-        if is_tree_leaf:
+        is_leaf_node = item.childCount() == 0
+        if is_leaf_node:
             self.show_context_menu(item, resource, position)
         else:
             self.show_entry_point_menu(item, resource, position)

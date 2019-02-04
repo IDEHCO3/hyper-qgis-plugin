@@ -9,6 +9,9 @@ import Utils
 import request
 
 from PyQt4.QtCore import pyqtSignal, QObject
+from IBGEVisualizer.Utils import Logging
+
+from IBGEVisualizer.error import BadAddressError
 
 
 def GET(url):
@@ -222,6 +225,9 @@ class Resource(QObject):
 
         self.iri = iri
         self.name = name
+
+        self.error = None
+
         #self.jsonld_parser = JsonLdParser(iri)
 
     @property
@@ -249,7 +255,12 @@ class Resource(QObject):
 
     def header(self):
         if self._header is None:
-            self._header = HeaderReader(self.iri)
+            try:
+                self._header = HeaderReader(self.iri)
+                self._header.headers()
+            except Exception as e:
+                self.error = e
+                Logging.warning(unicode(e))
 
         return self._header
 
@@ -309,32 +320,36 @@ class HeaderReader:
         if not i:
             return
 
-        self.__headers = None
+        self._headers = None
+
+        self.error = None
 
         self.iri = i
 
-    @property
     def headers(self):
-        if not self.__headers:
-            self.__headers = self._parse(self.iri)
+        if not self._headers:
+            reply = request_head(self.iri)
+            response = reply.response()
 
-        return self.__headers
+            # Verify if iri is available
+            if int(response['status_code']) < 200 or int(response['status_code']) >= 300:
+                error = BadAddressError(u'Acesso à {} retornou {} {}'.format(
+                    self.iri, response['status_code'], response['status_phrase']))
+                self.error = error
+                self._headers = None
+                raise error
 
-    @headers.setter
-    def headers(self, val):
-        pass
+            self._headers = self._parse(response)
+
+        return self._headers
 
     def field(self, name):
-        return self.headers.get(name)
+        if self.error:
+            return None
 
-    def _parse(self, iri):
-        reply = request_head(iri)
-        response = reply.response()
+        return self.headers().get(name) or None
 
-        if 200 > response['status_code'] >= 300:
-            raise Exception(u'Acesso à {} retornou {} {}'.format(
-                iri, response['status_code'], response['status_phrase']))
-
+    def _parse(self, response):
         headers = response.get('headers')
 
         headers.update(response)
@@ -351,18 +366,33 @@ class HeaderReader:
         return headers
 
     def link_header(self):
+        if self.error:
+            return None
+
         return self.field('link')
 
     def is_entry_point(self):
+        if self.error:
+            return False
+
         return self.link_header().get(ENTRY_POINT_LINK) or self.link_header().get(ENTRY_POINT_HTTP_LINK) or False
 
     def stylesheet_iri(self):
+        if self.error:
+            return None
+
         return self.link_header().get(STYLESHEET_LINK)
 
     def metadata_iri(self):
+        if self.error:
+            return None
+
         return self.link_header().get(METADATA_LINK)
 
     def context_iri(self):
+        if self.error:
+            return None
+
         link = self.link_header()
         context = link.get(CONTEXT_LINK) or None
         if not context:

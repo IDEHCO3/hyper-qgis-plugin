@@ -2,7 +2,9 @@
 changelog
 
 v0.4
-- WIP Added window to construct urls
+- Added icon in tree of resources when a link is offline
+- Added resource class
+- Added window to construct urls
 - Changed dock interface to show tree of resources
 
 v0.3

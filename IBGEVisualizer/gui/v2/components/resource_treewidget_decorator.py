@@ -51,7 +51,7 @@ class ResourceTreeWidgetDecorator:
         create_item = ComponentFactory.create_list_resource_element
 
         parent_item = parent_item or create_item(resource.name, resource.iri)
-        parent_item.mark_as_entry_point()
+        parent_item.set_icon_entry_point()
 
         for name, url in entry_point_elements.items():
             item = create_item(name, url)
