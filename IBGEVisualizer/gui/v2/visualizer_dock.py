@@ -9,7 +9,7 @@ from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortF
 
 from IBGEVisualizer import HyperResource, Plugin
 from IBGEVisualizer.model import ResourceManager
-from IBGEVisualizer.Utils import Config, Layer, MessageBox
+from IBGEVisualizer.Utils import Config, Layer, MessageBox, Logging
 from IBGEVisualizer.gui.v2.components.resource_treewidget_decorator import ResourceTreeWidgetDecorator
 from IBGEVisualizer.gui.v2.dialog_construct_url import DialogConstructUrl
 from IBGEVisualizer.gui.v2.dialog_add_resource import DialogAddResource
@@ -239,6 +239,11 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
             if layer:
                 Layer.add(layer)
+
+            if layer.featureCount() == 0:
+                Logging.info(u'{} retornou conjunto vazio de dados'.format(resource.iri), u'IBGEVisualizer')
+                MessageBox.info(u'URL retornou conjunto vazio')
+
         else:
             raise Exception(self.request_error)
 
