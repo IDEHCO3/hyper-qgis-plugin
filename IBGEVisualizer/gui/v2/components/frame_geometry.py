@@ -36,7 +36,7 @@ class FrameGeometry(QFrame, FORM_CLASS):
 
     def insert_criteria(self):
         url = self.tx_url.toPlainText()
-        url = url + ('/*' if not url.endswith('/*') else '')
+        url = url + ('/*' if not url.endswith('/') else '')
         self.criteria_inserted.emit(url)
 
     def load_resources_from_model(self):
