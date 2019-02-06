@@ -79,8 +79,8 @@ class FeatureCollection:
         }
 
         self.features = [GeoJsonFeature(f, resource.properties()) for f in resource.as_json().get('features')]
-        
-        self.geom_type = switch.get(self.features[0].geom_type) or 'polygon'
+
+        self.geom_type = switch.get(self.features[0].geom_type) if self.features else 'polygon'
 
     def get_qgs_fields(self):
         has_features = self.features and len(self.features) > 0

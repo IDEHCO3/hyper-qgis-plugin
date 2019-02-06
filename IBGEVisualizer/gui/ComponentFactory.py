@@ -4,12 +4,8 @@
 from PyQt4.QtGui import QTreeWidgetItem, QListWidgetItem, QBrush, QColor, QIcon, QMovie
 
 
-def create_list_resource_element(name, url=''):
-    item = ListResourceTreeItem()
-    item.setName(name)
-    item.setUrl(url)
-
-    return item
+def create_list_resource_element(resource):
+    return ListResourceTreeItem(resource)
 
 def create_operation_list_item(oper):
     item = SupportedOperationListItem(oper)
@@ -41,8 +37,13 @@ def create_gif_icon(dir_=None):
 class ListResourceTreeItem(QTreeWidgetItem):
     # 0 - name
     # 1 - url
-    def __init__(self):
+    def __init__(self, resource):
         super(ListResourceTreeItem, self).__init__()
+
+        self.resource = resource
+
+        self.setName(resource.name)
+        self.setUrl(resource.iri)
 
         #self.setBackground(0, QBrush(QColor(255, 252, 226)))
 
@@ -54,7 +55,13 @@ class ListResourceTreeItem(QTreeWidgetItem):
 
     def setUrl(self, url):
         self.setText(1, url)
-        self.setToolTip(0, url)
+
+        if self.resource.error:
+            msg = u'Indisponível - {}'.format(self.resource.iri)
+        else:
+            msg = self.resource.iri
+
+        self.setToolTip(0, msg)
 
     def url(self):
         return self.text(1)
@@ -88,7 +95,7 @@ class SupportedOperationListItem(QListWidgetItem):
 
         self.setText(self.name)
 
-        self.setToolTip(str(self.property))
+        self.setToolTip(unicode(self.property))
         self.setBackground(QBrush(QColor(255, 252, 226)))
 
 

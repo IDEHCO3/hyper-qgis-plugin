@@ -71,8 +71,12 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
         if item_has_children:
             return
 
-        # Verifica se é um entrypoint com layers ainda não carregadas
         resource = ResourceManager.load(iri)
+        if resource.error:
+            MessageBox.critical(u'Link está indisponível ou fora do ar.\n {}'.format(resource.iri), u'Link indisponível')
+            return
+
+        # Verifica se é um entrypoint com layers ainda não carregadas
         if resource.is_entry_point():
             item.set_icon_entry_point()
             self.list_resource.add(resource, item)
@@ -105,10 +109,6 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
     def load_resource(self, resource):
         parent_item = self.list_resource.add(resource)
-
-        if resource.error:
-            parent_item.set_icon_error()
-
         parent_item.set_color_user_resource()
 
     def add_resource(self, name, url):

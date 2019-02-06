@@ -257,7 +257,7 @@ class Resource(QObject):
         if self._header is None:
             try:
                 self._header = HeaderReader(self.iri)
-                self._header.headers()
+                self._header.headers()      # Forcing download of data for error handling
             except Exception as e:
                 self.error = e
                 Logging.warning(unicode(e))

@@ -6,6 +6,7 @@
 from collections import OrderedDict
 
 from IBGEVisualizer.gui import ComponentFactory
+from IBGEVisualizer.model import ResourceManager
 
 
 class ResourceTreeWidgetDecorator:
@@ -22,10 +23,13 @@ class ResourceTreeWidgetDecorator:
         else:
             item = self._add_simple_resource(resource, parent_item)
 
+        if resource.error:
+            item.set_icon_error()
+
         return item
 
     def _add_simple_resource(self, resource, parent_item=None):
-        widget = ComponentFactory.create_list_resource_element(resource.name, resource.iri)
+        widget = ComponentFactory.create_list_resource_element(resource)
         return self._append(widget, parent_item)
 
     def _add_entry_point(self, resource, parent_item=None):
@@ -50,11 +54,12 @@ class ResourceTreeWidgetDecorator:
     def _append_entry_point(self, resource, entry_point_elements, parent_item=None):
         create_item = ComponentFactory.create_list_resource_element
 
-        parent_item = parent_item or create_item(resource.name, resource.iri)
+        parent_item = parent_item or create_item(resource)
         parent_item.set_icon_entry_point()
 
         for name, url in entry_point_elements.items():
-            item = create_item(name, url)
+            new_res = ResourceManager.load(url, name)
+            item = create_item(new_res)
 
             self._append(item, parent_item)
 
