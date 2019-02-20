@@ -36,10 +36,9 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 
         self._on_load_commands()
 
-        self.url_builder = UrlBuilder()
+        self.url_builder = UrlBuilder(self.ta_url)
 
         # Eventos
-        self.url_builder.url_updated.connect(self.ta_url.setPlainText)
         self.list_attributes.itemClicked.connect(self._list_attributes_itemClicked)
         self.bt_load_url.clicked.connect(self._bt_load_url_clicked)
 
@@ -166,19 +165,22 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
 class UrlBuilder(QObject):
     url_updated = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, bound_item):
         super(UrlBuilder, self).__init__()
+
+        self.bound_item = bound_item
+
+        self.url_updated.connect(self.bound_item.setPlainText)
 
         self._url = ''
         self._operation = ''
-        self._appendix = ''
 
     def set_url(self, url):
         #reseting vars
         self._operation = ''
 
         self._url = url
-        self.url_updated.emit(self.url_builded())
+        self.url_updated.emit(self.url_built())
 
     def url(self):
         if self._url:
@@ -188,7 +190,7 @@ class UrlBuilder(QObject):
 
     def set_operation(self, operation):
         self._operation = operation
-        self.url_updated.emit(self.url_builded())
+        self.url_updated.emit(self.url_built())
 
     def operation(self):
         if self._operation:
@@ -197,11 +199,17 @@ class UrlBuilder(QObject):
         return ''
 
     def append(self, text):
-        self._appendix = self._appendix + text
-        self.url_updated.emit(self.url_builded())
+        old_text = self.bound_item.toPlainText()
+        self.bound_item.setPlainText(old_text + text)
+        self.url_updated.emit(self.url_built())
 
     def appendix(self):
-        return self._appendix
+        len1 = len(self.url())
+        len2 = len(self.operation())
 
-    def url_builded(self):
+        whole_text = self.bound_item.toPlainText()
+
+        return whole_text[len1+len2-1:]
+
+    def url_built(self):
         return self.url() + self.operation() + self.appendix()
