@@ -28,6 +28,9 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.preview_builder = FilterPreviewBuilder()
         self.preview_builder.preview_changed.connect(self.preview_changed)
 
+        self.property_selected = ''
+        self.operator_selected = ''
+
         self.cb_filter_property.currentIndexChanged.connect(self._cb_property_changed)
 
         self.bt_insert_criteria.clicked.connect(self._emit_insert_criteria)
@@ -89,14 +92,11 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         callback = switch.get(index)
         callback()
 
-    def bla(self):
-        pass
-
     def _tabValue_setup(self):
         self.tabValue_list_values.clear()
         self.tabValue_tx_insert_value.clear()
 
-        prop = self.preview_builder.property()
+        prop = self.property_selected
 
         if prop == 'geom':
             return
@@ -115,7 +115,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         self.tabListValue_list_values.clear()
         self.tabListValue_tx_value.clear()
 
-        prop = self.preview_builder.property()
+        prop = self.property_selected
 
         if prop == 'geom':
             return
@@ -158,7 +158,7 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
         return sorted(resource.as_json())
 
     def _current_tab_property_changed(self, index):
-        prop = self.preview_builder.property()
+        prop = self.property_selected
 
         property_list = self._get_property(self.resource, prop)
 
@@ -228,10 +228,12 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
 
     def _set_preview_property(self, index):
         property_ = self.cb_filter_property.itemText(index)
+        self.property_selected = property_
         self.preview_builder.set_property(property_)
 
     def _set_preview_operator(self, operator):
         self.preview_builder.set_operator(operator)
+        self.operator_selected = operator
 
     def preview_changed(self, preview):
         self.lb_criteria_preview.setText(preview)
@@ -271,6 +273,8 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
 
 class FilterPreviewBuilder(QObject):
     preview_changed = pyqtSignal(str)
+
+    LIST_SEPARATOR = '&'
 
     def __init__(self):
         super(FilterPreviewBuilder, self).__init__()
@@ -328,7 +332,7 @@ class FilterPreviewBuilder(QObject):
             self.set_value(value)
 
         else:
-            self.set_value(self.value() + '&' + value)
+            self.set_value(self.value() + self.LIST_SEPARATOR + value)
 
     def preview(self):
         return u'{property}/{operator}/{value}'.format(
@@ -336,7 +340,6 @@ class FilterPreviewBuilder(QObject):
             operator=self.operator(),
             value=self.value()
         )
-
 
 
 class OperationListItem(QListWidgetItem):

@@ -10,8 +10,10 @@ from layers.VectorLayer import VectorLayer
 
 from IBGEVisualizer.HyperResource import COLLECTION_TYPE_VOCAB, FEATURE_COLLECTION_TYPE_VOCAB, FEATURE_TYPE_VOCAB, \
     POINT_TYPE_VOCAB, MULTIPOINT_TYPE_VOCAB, LINESTRING_TYPE_VOCAB, MULTILINESTRING_TYPE_VOCAB, POLYGON_TYPE_VOCAB, \
-    MULTIPOLYGON_TYPE_VOCAB, GEOMETRY_COLLECTION_TYPE_VOCAB
-
+    MULTIPOLYGON_TYPE_VOCAB, GEOMETRY_COLLECTION_TYPE_VOCAB, POINT_HTTPS_TYPE_VOCAB, MULTIPOINT_HTTPS_TYPE_VOCAB, \
+    LINESTRING_HTTPS_TYPE_VOCAB, MULTILINESTRING_HTTPS_TYPE_VOCAB, POLYGON_HTTPS_TYPE_VOCAB, \
+    MULTIPOLYGON_HTTPS_TYPE_VOCAB, FEATURE_COLLECTION_HTTPS_TYPE_VOCAB, FEATURE_HTTPS_TYPE_VOCAB, \
+    GEOMETRY_COLLECTION_HTTPS_TYPE_VOCAB
 
 """
     This script that create layers in QGIS 
@@ -222,33 +224,53 @@ def create_layer(resource):
     return layer
 
 def _parse_to_layer(resource):
+    simple_json_collection_command = lambda: SimpleJSONCollection(resource)
+    simple_json_command = lambda: SimpleJSON(resource.as_json(), resource.properties())
+    feature_collection_command = lambda: FeatureCollection(resource)
+    feature_command = lambda: GeoJsonFeature(resource.as_json(), resource.properties())
+    geojson_command = lambda: GeoJsonGeometry(resource.as_json())
+    geometry_collection_command = lambda: GeometryCollection(resource)
+
     switch = {
-        COLLECTION_TYPE_VOCAB: lambda: SimpleJSONCollection(resource),
-        FEATURE_COLLECTION_TYPE_VOCAB: lambda: FeatureCollection(resource),
-        FEATURE_TYPE_VOCAB: lambda: GeoJsonFeature(resource.as_json(), resource.properties()),
-        GEOMETRY_COLLECTION_TYPE_VOCAB: lambda: GeometryCollection(resource),
+        COLLECTION_TYPE_VOCAB: simple_json_collection_command,
 
-        POINT_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
-        MULTIPOINT_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
-        LINESTRING_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
-        MULTILINESTRING_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
-        POLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
-        MULTIPOLYGON_TYPE_VOCAB: lambda: GeoJsonGeometry(resource.as_json()),
+        FEATURE_COLLECTION_TYPE_VOCAB: feature_collection_command,
+        FEATURE_TYPE_VOCAB: feature_command,
+        GEOMETRY_COLLECTION_TYPE_VOCAB: geometry_collection_command,
 
-        'Collection': lambda: SimpleJSONCollection(resource),
-        'Thing': lambda: SimpleJSON(resource.as_json(), resource.properties()),
-        'FeatureCollection': lambda: FeatureCollection(resource),
-        'GeometryCollection': lambda: GeometryCollection(resource),
-        'Feature': lambda: GeoJsonFeature(resource.as_json(), resource.properties()),
-        'Point': lambda: GeoJsonGeometry(resource.as_json()),
-        'MultiPoint': lambda: GeoJsonGeometry(resource.as_json()),
-        'LineString': lambda: GeoJsonGeometry(resource.as_json()),
-        'MultiLineString': lambda: GeoJsonGeometry(resource.as_json()),
-        'Polygon': lambda: GeoJsonGeometry(resource.as_json()),
-        'MultiPolygon': lambda: GeoJsonGeometry(resource.as_json()),
+        FEATURE_COLLECTION_HTTPS_TYPE_VOCAB: feature_collection_command,
+        FEATURE_HTTPS_TYPE_VOCAB: feature_command,
+        GEOMETRY_COLLECTION_HTTPS_TYPE_VOCAB: geometry_collection_command,
+
+        POINT_TYPE_VOCAB: geojson_command,
+        MULTIPOINT_TYPE_VOCAB: geojson_command,
+        LINESTRING_TYPE_VOCAB: geojson_command,
+        MULTILINESTRING_TYPE_VOCAB: geojson_command,
+        POLYGON_TYPE_VOCAB: geojson_command,
+        MULTIPOLYGON_TYPE_VOCAB: geojson_command,
+
+        # TODO ajustar para novas versões do hyper
+        POINT_HTTPS_TYPE_VOCAB: geojson_command,
+        MULTIPOINT_HTTPS_TYPE_VOCAB: geojson_command,
+        LINESTRING_HTTPS_TYPE_VOCAB: geojson_command,
+        MULTILINESTRING_HTTPS_TYPE_VOCAB: geojson_command,
+        POLYGON_HTTPS_TYPE_VOCAB: geojson_command,
+        MULTIPOLYGON_HTTPS_TYPE_VOCAB: geojson_command,
+
+        'Collection': simple_json_collection_command,
+        'Thing': simple_json_command,
+        'FeatureCollection': feature_collection_command,
+        'GeometryCollection': geometry_collection_command,
+        'Feature': feature_command,
+        'Point': geojson_command,
+        'MultiPoint': geojson_command,
+        'LineString': geojson_command,
+        'MultiLineString': geojson_command,
+        'Polygon': geojson_command,
+        'MultiPolygon': geojson_command,
     }
 
     at_type = resource.options().at_type()
-    callback = switch.get(at_type) or (lambda: SimpleJSONCollection(resource))
+    callback = switch.get(at_type) or simple_json_collection_command
 
     return callback()

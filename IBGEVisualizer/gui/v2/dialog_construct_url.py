@@ -8,7 +8,7 @@ from PyQt4.QtCore import Qt, QObject, pyqtSignal
 from PyQt4.QtGui import QDialog, QListWidgetItem, QPainter, QPixmap
 
 from IBGEVisualizer.HyperResource import ITEM_LIST_TYPE_VOCAB, EXPRESSION_TYPE_VOCAB, GEOMETRY_TYPE_VOCAB, \
-    FLOAT_TYPE_VOCAB, PROPERTY_VOCAB
+    FLOAT_TYPE_VOCAB, PROPERTY_VOCAB, GEOMETRY_HTTPS_TYPE_VOCAB
 from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilterExpression
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
@@ -53,22 +53,22 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
             self._load_property_list_frame()
 
         if item.type_ == 'supported_operation':
-            if len(item.property.expects) < 1:
+            if len(item.property.parameters()) < 1:
                 self._load_empty_expects_frame(item)
 
             elif item.name == 'offset-limit':
                 self._load_offset_limit_frame()
 
-            elif EXPRESSION_TYPE_VOCAB in item.property.expects:
+            elif EXPRESSION_TYPE_VOCAB in item.property.parameters():
                 self._load_filter_expression_frame()
 
-            elif ITEM_LIST_TYPE_VOCAB in item.property.expects or PROPERTY_VOCAB in item.property.expects:
+            elif ITEM_LIST_TYPE_VOCAB in item.property.parameters() or PROPERTY_VOCAB in item.property.parameters():
                 self._load_item_list_frame()
 
-            elif GEOMETRY_TYPE_VOCAB in item.property.expects:
+            elif GEOMETRY_HTTPS_TYPE_VOCAB in item.property.parameters() or GEOMETRY_TYPE_VOCAB in item.property.parameters():
                 self._load_geometry_frame()
 
-            elif FLOAT_TYPE_VOCAB in item.property.expects:
+            elif FLOAT_TYPE_VOCAB in item.property.parameters():
                 self._load_float_frame()
 
         self.url_builder.set_operation(item.name)

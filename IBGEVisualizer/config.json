@@ -1,17 +1,5 @@
 {
   "memo_urls": {
-    "cidades proj": "http://172.30.10.86/api/bcim/cidades/projection/nome", 
-    "planejamento urbano": "http://172.30.10.86/api/munic-2015/planejamento-urbano-list", 
-    "geom collection": "http://172.30.10.86/api/bcim/unidades-federativas/geom", 
-    "polygon": "http://172.30.10.86/api/bcim/unidades-federativas/PA/geom", 
-    "point": "http://172.30.10.86/api/bcim/aldeias-indigenas/623/geom", 
-    "DF": "http://172.30.10.86/api/bcim/unidades-federativas/DF", 
-    "IBGE": "http://localhost:8000/api/ibge/", 
-    "IBGE-BCIM": "http://172.30.10.86/api/bcim/", 
-    "estatistica": "http://172.30.10.86/dados-estatisticos-app-list/", 
-    "PA": "http://172.30.10.86/api/bcim/unidades-federativas/PA/", 
-    "plan": "http://172.30.10.86/api/munic-2015/planejamento-urbano-list", 
-    "linestring": "http://172.30.10.86/api/bcim/trechos-ferroviarios/12711/geom", 
-    "munic": "http://172.30.10.86/api/munic-2015/"
+    "Cartografia": "http://172.30.137.104:8001/api/cartografia/"
   }
 }

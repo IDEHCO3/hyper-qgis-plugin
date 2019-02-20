@@ -95,8 +95,8 @@ class Reply(QObject):
 
             return {
                 'url': self.url,
-                'status_code': status_code,
-                'status_phrase': status_phrase,
+                'status_code': status_code or 0,
+                'status_phrase': status_phrase or '',
                 'headers': header_data,
                 'body': qbytearray.data()
             }

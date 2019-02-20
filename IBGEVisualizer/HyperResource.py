@@ -126,11 +126,18 @@ class SupportedOperation(object):
     def __eq__(self, other):
         return self.name == other.name
 
+    def parameters(self):
+        if isinstance(self.expects, list):
+            if isinstance(self.expects[0], dict):
+                return [param.get('parameter') for param in self.expects]
+
+            return self.expects
+
     def html_formatted(self):
         path = os.path.join(os.path.dirname(__file__), 'gui/supported_operation_html_template.html')
         html = open(path).read()
 
-        html_formmated = html.format(
+        html_formatted = html.format(
             name=unicode(self.name),
             expects="<br>".join(map(lambda link: u'<a href="{link}">{link}</a>'.format(link=link), self.expects)),
             http_method=str(self.method),
@@ -139,7 +146,7 @@ class SupportedOperation(object):
             context=str(OperationContext.translate(self.context))
         )
 
-        return html_formmated
+        return html_formatted
 
 
 class OperationContext:
@@ -188,16 +195,34 @@ PROPERTY_VOCAB = HYDRA_VOCAB + 'property'
 OPERATION_VOCAB = HYDRA_VOCAB + 'operation'
 
 COLLECTION_TYPE_VOCAB = HYDRA_VOCAB + "Collection"
+
 FEATURE_COLLECTION_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#FeatureCollection"
+FEATURE_COLLECTION_HTTPS_TYPE_VOCAB  = "https://purl.org/geojson/vocab#FeatureCollection"
 FEATURE_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Feature"
-POINT_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Point"
+FEATURE_HTTPS_TYPE_VOCAB  = "https://purl.org/geojson/vocab#Feature"
+
+POINT_TYPE_VOCAB = "https://purl.org/geojson/vocab#Point"
+POINT_HTTPS_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Point"
 MULTIPOINT_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiPoint"
+MULTIPOINT_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#MultiPoint"
+
 LINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#LineString"
+LINESTRING_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#LineString"
+
 MULTILINESTRING_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiLineString"
+MULTILINESTRING_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#MultiLineString"
+
 POLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#Polygon"
+POLYGON_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#Polygon"
+
 MULTIPOLYGON_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#MultiPolygon"
+MULTIPOLYGON_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#MultiPolygon"
+
 GEOMETRY_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#geometry"
+GEOMETRY_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#geometry"
+
 GEOMETRY_COLLECTION_TYPE_VOCAB = "http://geojson.org/geojson-ld/vocab.html#GeometryCollection"
+GEOMETRY_COLLECTION_HTTPS_TYPE_VOCAB = "https://purl.org/geojson/vocab#GeometryCollection"
 
 EXPRESSION_TYPE_VOCAB = 'http://extension.schema.org/expression'
 ITEM_LIST_TYPE_VOCAB = 'https://schema.org/ItemList'
@@ -321,9 +346,7 @@ class HeaderReader:
             return
 
         self._headers = None
-
         self.error = None
-
         self.iri = i
 
     def headers(self):
@@ -482,7 +505,7 @@ class GetReader(QObject):
             return
 
         self.iri = iri
-        self.__data = None
+        self._data = None
 
         self._reply = GET(iri)
         self._connect_signals(self._reply)
@@ -496,14 +519,14 @@ class GetReader(QObject):
         return self._response
 
     def as_text(self):
-        if not self.__data:
-            self.__data = self.response()
+        if not self._data:
+            self._data = self.response()
 
-            if 200 > self.__data['status_code'] >= 300:
+            if 200 > self._data['status_code'] >= 300:
                 raise Exception(u'Acesso à {} retornou {} {}'.format(
-                    self.iri, self.__data['status_code'], self.__data['status_phrase']))
+                    self.iri, self._data['status_code'], self._data['status_phrase']))
 
-        return self.__data.get('body')
+        return self._data.get('body')
 
     def as_json(self):
         return json.loads(self.as_text())

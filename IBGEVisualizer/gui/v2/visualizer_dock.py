@@ -7,7 +7,7 @@ from PyQt4 import uic
 from PyQt4.QtCore import pyqtSignal, Qt, QTimer
 from PyQt4.QtGui import QApplication, QDockWidget, QMenu, QAction, QIcon, QSortFilterProxyModel, QBrush, QColor
 
-from IBGEVisualizer import HyperResource, Plugin
+from IBGEVisualizer import Plugin
 from IBGEVisualizer.model import ResourceManager
 from IBGEVisualizer.Utils import Config, Layer, MessageBox, Logging
 from IBGEVisualizer.gui.v2.components.resource_treewidget_decorator import ResourceTreeWidgetDecorator
@@ -47,7 +47,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
         self.list_resource.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_resource.customContextMenuRequested.connect(self.open_context_menu)
-        self.list_resource.itemDoubleClicked.connect(self._list_resource_doubleClicked)
+        self.list_resource.leaf_resource_double_clicked.connect(self._list_resource_doubleClicked)
 
         #self.tx_quick_resource.returnPressed.connect(self._tx_quick_resource_pressed)
 
@@ -64,24 +64,7 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
 
 
     def _list_resource_doubleClicked(self, item):
-        name = item.text(0)
-        iri = item.text(1)
-
-        item_has_children = item.childCount() > 0
-        if item_has_children:
-            return
-
-        resource = ResourceManager.load(iri)
-        if resource.error:
-            MessageBox.critical(u'Link está indisponível ou fora do ar.\n {}'.format(resource.iri), u'Link indisponível')
-            return
-
-        # Verifica se é um entrypoint com layers ainda não carregadas
-        if resource.is_entry_point():
-            item.set_icon_entry_point()
-            self.list_resource.add(resource, item)
-            return
-
+        name, iri = item.text(0), item.text(1)
         self.open_operations_editor(name, iri)
 
     def _bt_add_resource_clicked(self):
@@ -224,6 +207,8 @@ class VisualizerDock(QDockWidget, FORM_CLASS):
             self.request_error = error
             self.update_status(u'Requisição retornou um erro')
             MessageBox.critical(error, u'Requisição retornou um erro')
+
+        self.request_error = False
 
         self.timer.stop()
         resource.request_started.connect(self.start_request)
