@@ -15,6 +15,18 @@ def create_property_list_item(prop):
     item = SupportedPropertyListItem(prop)
     return item
 
+def create_dummy_list_item(dummy_text):
+    item = QListWidgetItem()
+    item.setText(dummy_text)
+
+    return item
+
+def create_dummy_tree_item(dummy_text):
+    item = QTreeWidgetItem()
+    item.setText(0, dummy_text)
+
+    return item
+
 def create_icon(dir_=None):
     return QIcon(dir_)
 
@@ -82,11 +94,6 @@ class ListResourceTreeItem(QTreeWidgetItem):
 # Classe de itens que serão adicionados à list_attributes em dialog_construct_url_2
 class SupportedOperationListItem(QListWidgetItem):
     def __init__(self, oper):
-        from IBGEVisualizer.HyperResource import SupportedOperation
-
-        if not isinstance(oper, SupportedOperation):
-            return
-
         super(SupportedOperationListItem, self).__init__()
 
         self.property = oper

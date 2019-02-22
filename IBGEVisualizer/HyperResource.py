@@ -67,24 +67,28 @@ def _get_entry_point_from_link(link_tab):
 
     return entry_point
 
+
 class SupportedProperty(object):
     def __init__(self, at_context, **data):
-        self.name = data.get('hydra:property') or data.get('name') or ''
+        self.name = data.get('hydra:property') or data.get('hydra:title') or data.get('name') or ''
         self.is_writeable = data.get('hydra:writeable') or data.get('is_writeable') or False
         self.is_readable = data.get('hydra:readable') or data.get('is_readable') or False
         self.is_required = data.get('hydra:required') or data.get('is_required') or False
         self.is_unique = data.get('isUnique') or data.get('is_unique') or False
         self.is_identifier = data.get('isIdentifier') or data.get('is_identifier') or False
         self.is_external = data.get('isExternal') or data.get('is_external') or False
+        self.supported_operation = data.get('hydra:supportedOperations') or data.get('supportedOperations') or []
 
         term_definition = at_context.get(self.name) or {}
         self.at_type = term_definition.get('@type') or None
         self.at_id = term_definition.get('@id')
 
     def __str__(self):
-        return u'<SupportedProperty: "name":{}, "is_writeable":{}, "is_readable":{}, "is_required":{}, "is_unique": {}, "is_identifier": {}, "is_external": {}>' \
+        return u'<SupportedProperty: "name":{}, "is_writeable":{}, "is_readable":{}, "is_required":{}, "is_unique": {}, ' \
+               u'"is_identifier": {}, "is_external": {}, "supported operations": {}>' \
                 .format(unicode(self.name), str(self.is_writeable), str(self.is_readable), str(self.is_required),
-                    str(self.is_unique), str(self.is_identifier), str(self.is_external))
+                    str(self.is_unique), str(self.is_identifier), str(self.is_external),
+                        str(self.supported_operation_link()))
 
     def __repr__(self):
         return self.__str__()
@@ -92,18 +96,19 @@ class SupportedProperty(object):
     def __eq__(self, other):
         return self.name == other.name
 
-    def html_formatted(self):
-        path = os.path.join(os.path.dirname(__file__), 'gui/supported_property_html_template.html')
-        html = open(path).read()
+    def supported_operation_link(self):
+        operation = self.supported_operation[0] if self.supported_operation else {}
 
-        return html.format(
-            name=unicode(self.name),
-            is_writeable=str(self.is_writeable),
-            is_readable=str(self.is_readable),
-            is_required=str(self.is_required),
-            is_unique=str(self.is_unique),
-            is_identifier=str(self.is_identifier),
-            is_external=str(self.is_external))
+        if operation.get('hydra:Link'):
+            return (operation.get('hydra:Link'))[0] or None
+
+        return None
+
+    def operations(self):
+        link = self.supported_operation_link()
+        reader = PropertySupportedOperationReader(link)
+
+        return reader.extract_operation()
 
 
 class SupportedOperation(object):
@@ -133,51 +138,62 @@ class SupportedOperation(object):
 
             return self.expects
 
-    def html_formatted(self):
-        path = os.path.join(os.path.dirname(__file__), 'gui/supported_operation_html_template.html')
-        html = open(path).read()
 
-        html_formatted = html.format(
-            name=unicode(self.name),
-            expects="<br>".join(map(lambda link: u'<a href="{link}">{link}</a>'.format(link=link), self.expects)),
-            http_method=str(self.method),
-            status_code=str(self.status_code),
-            returns=str(self.returns),
-            context=str(OperationContext.translate(self.context))
-        )
-
-        return html_formatted
+class PropertySupportedOperation:
+    def __init__(self, **data):
+        self.name = data.get('name') or ''
+        self.definition = data.get('definition') or ''
+        self.parameters = data.get('parameters') or ''
+        self.return_field = data.get('return_field') or ''
+        self.example = data.get('example') or ''
 
 
-class OperationContext:
-    @staticmethod
-    def translate(url):
-        context_path = os.path.join(os.path.dirname(__file__), 'gui/operations_template.html')
-        context_html = open(context_path).read()
+class PropertySupportedOperationReader:
+    def __init__(self, url):
+        #TODO apagar isso qundo tiver um ip certo
+        if url:
+            url = url.replace('172.30.10.86', '172.30.137.117')
 
-        context_definition = '---'
-        context_params = '---'
-        context_return = '---'
-        context_example = '---'
-        try:
-            context = request_get(url)
-            #header = context.get('header') or ''
+        self.url = url
 
-            dic = json.loads(context.get('body'))
+        self._data = {}
+        self._response = None
+        self._promise = GET(self.url) if self.url else None
 
-            context_definition = dic.get('definition') or '---'
-            context_params = dic.get('parameters') or '---'
-            context_return = dic.get('return') or '---'
-            context_example = dic.get('example') or '---'
-        except:
-            pass
+    def response(self):
+        if not self._response:
+            if self._promise:
+                self._response = self._promise.response()
 
-        return context_html.format(
-            definition=context_definition,
-            params=context_params,
-            returns=context_return,
-            example=context_example,
-        )
+        return self._response or {}
+
+    def as_text(self):
+        if not self._data:
+            self._data = self.response()
+
+            if 200 > self._data.get('status_code') >= 300:
+                raise Exception(
+                    u'Acesso à {url} retornou {code} {phrase}'.format(
+                        url=self.url,
+                        code=self._data['status_code'],
+                        phrase=self._data['status_phrase']))
+
+        return self._data.get('body') or '{}'
+
+    def as_json(self):
+        return json.loads(self.as_text())
+
+    def extract_operation(self):
+        json_options = self.as_json()
+
+        if not json_options:
+            return []
+
+        order_by_name = lambda prop: prop.name
+        return_array = [PropertySupportedOperation(**data) for data in json_options]
+        return_array.sort(key=order_by_name)
+
+        return return_array or []
 
 
 JSON_LD_CONTENT_TYPE = 'application/ld+json'
@@ -536,6 +552,7 @@ class GetReader(QObject):
         obj.downloadProgress.connect(self.request_progress)
         obj.error.connect(self.request_error)
         obj.finished.connect(self.request_finished)
+
 
 class OptionsReader:
     def __init__(self, iri):

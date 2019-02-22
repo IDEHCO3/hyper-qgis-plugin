@@ -9,6 +9,7 @@ from PyQt4.QtGui import QDialog, QListWidgetItem, QPainter, QPixmap
 
 from IBGEVisualizer.HyperResource import ITEM_LIST_TYPE_VOCAB, EXPRESSION_TYPE_VOCAB, GEOMETRY_TYPE_VOCAB, \
     FLOAT_TYPE_VOCAB, PROPERTY_VOCAB, GEOMETRY_HTTPS_TYPE_VOCAB
+from IBGEVisualizer.gui.v2.components.frame_collect import FrameCollect
 from IBGEVisualizer.gui.v2.components.frame_filter_expression import FrameFilterExpression
 from IBGEVisualizer.gui.v2.components.frame_item_list_expression import FrameItemListExpression
 from IBGEVisualizer.gui.v2.components.frame_property_list import FramePropertyList
@@ -58,6 +59,9 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
             elif item.name == 'offset-limit':
                 self._load_offset_limit_frame()
 
+            elif item.name == 'collect':
+                self._load_collect_frame()
+
             elif EXPRESSION_TYPE_VOCAB in item.property.parameters():
                 self._load_filter_expression_frame()
 
@@ -76,6 +80,11 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         url = self.ta_url.toPlainText()
         name = url.strip('/').split('/')[-1]
         self.load_url_command.emit(name, unicode(url))
+
+    def _load_collect_frame(self):
+        widget = FrameCollect(self.resource)
+        self._insert_in_operations_layout(widget)
+        widget.criteria_inserted.connect(lambda t: self.url_builder.append(t))
 
     def _load_offset_limit_frame(self):
         widget = FrameOffsetLimit()
@@ -141,17 +150,17 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
         if operations:
             self.generate_operation_items_from_options(operations)
 
-    def generate_property_items_from_options(self, options_properties):
+    def generate_property_items_from_options(self, supported_properties):
         self._generate_items_from_options(
             ComponentFactory.create_property_list_item,
             self.list_attributes.addItem,
-            options_properties)
+            supported_properties)
 
-    def generate_operation_items_from_options(self, options_operations):
+    def generate_operation_items_from_options(self, supported_operations):
         self._generate_items_from_options(
             ComponentFactory.create_operation_list_item,
             self.list_attributes.addItem,
-            options_operations)
+            supported_operations)
 
     def _generate_items_from_options(self, factory_callback, add_item_callback, options_attributes=list()):
         def create_and_insert_item(attr):
@@ -159,7 +168,6 @@ class DialogConstructUrl(QDialog, FORM_CLASS):
             add_item_callback(res)
 
         map(create_and_insert_item, options_attributes)
-
 
 
 class UrlBuilder(QObject):
@@ -209,7 +217,13 @@ class UrlBuilder(QObject):
 
         whole_text = self.bound_item.toPlainText()
 
-        return whole_text[len1+len2-1:]
+        return whole_text[len1+len2:]
 
     def url_built(self):
-        return self.url() + self.operation() + self.appendix()
+        appendix = self.appendix()
+
+        if not appendix == '' and not appendix.endswith('/*') and not appendix.endswith('/'):
+            appendix = appendix + '/'
+
+        return self.url() + self.operation() + appendix
+
