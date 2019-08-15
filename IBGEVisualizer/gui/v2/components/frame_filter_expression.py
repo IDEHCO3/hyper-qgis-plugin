@@ -83,9 +83,8 @@ class FrameFilterExpression(QFrame, FORM_CLASS):
     def _on_tab_change(self, index):
         switch = {
             0: self._tabValue_setup,
-            1: self.bla,
-            2: self._tabListValue_setup,
-            3: self._tabUrl_setup,
+            1: self._tabListValue_setup,
+            2: self._tabUrl_setup,
         }
 
         # executing
